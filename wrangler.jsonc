@@ -7,5 +7,12 @@
     "directory": ".",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pos-db",
+      "database_id": "2bf9b440-8d20-44e3-ae40-4822df1a465d"
+    }
+  ]
 }
