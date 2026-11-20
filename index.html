@@ -6,62 +6,250 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Veg Takeaway POS</title>
   <link rel="manifest" href="./manifest.webmanifest">
+
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; font: 16px Arial, sans-serif;
-      background: #f1f5f9; color: #172033; }
-    header { background: #166534; color: white;
-      padding: 18px 24px; display: flex;
-      justify-content: space-between; }
-    main { display: grid; grid-template-columns: 2fr 1fr;
-      gap: 20px; padding: 20px; }
-    section { background: white; padding: 20px;
-      border-radius: 12px; }
-    .products { display: grid;
-      grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
-      gap: 12px; }
-    button { padding: 14px; border: 0; border-radius: 8px;
-      cursor: pointer; font-size: 15px; }
-    .product { background: #dcfce7; text-align: left; }
-    .primary { background: #166534; color: white; width: 100%; }
-    .secondary { background: #e2e8f0; }
-    .cart-row { display: flex; justify-content: space-between;
-      align-items: center; border-bottom: 1px solid #ddd;
-      padding: 10px 0; gap: 8px; }
-    input { padding: 12px; width: 100%; font-size: 18px;
-      margin: 8px 0; }
-    .total { font-size: 26px; font-weight: bold; }
-    .status { font-size: 13px; }
-    #message { margin-top: 12px; }
-    @media(max-width:750px) {
-      main { grid-template-columns: 1fr; }
+
+    body {
+      margin: 0;
+      font: 16px Arial, sans-serif;
+      background: #f1f5f9;
+      color: #172033;
+    }
+
+    header {
+      background: #166534;
+      color: white;
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    section {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    .products {
+      display: grid;
+      grid-template-columns:
+        repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    button {
+      padding: 14px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .product {
+      background: #dcfce7;
+      text-align: left;
+    }
+
+    .primary {
+      background: #166534;
+      color: white;
+      width: 100%;
+    }
+
+    .secondary {
+      background: #e2e8f0;
+    }
+
+    .cart-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ddd;
+      padding: 10px 0;
+      gap: 8px;
+    }
+
+    input {
+      padding: 12px;
+      width: 100%;
+      font-size: 18px;
+      margin: 8px 0 15px;
+    }
+
+    .total {
+      font-size: 26px;
+      font-weight: bold;
+    }
+
+    .status {
+      font-size: 13px;
+    }
+
+    #message, #sync-message {
+      margin-top: 12px;
+    }
+
+    .sync-panel {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 20px;
+    }
+
+    .sync-panel h3 {
+      margin-top: 0;
+      color: #166534;
+    }
+
+    .sync-panel label {
+      display: block;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    #sync-now {
+      margin-top: 12px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 750px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 10px;
+      }
+
+      section {
+        padding: 15px;
+      }
     }
   </style>
+
   <script src="./db.js" defer></script>
   <script src="./app.js" defer></script>
+  <script src="./sync.js" defer></script>
 </head>
+
 <body>
   <header>
     <strong>VEG TAKEAWAY POS</strong>
-    <span id="status" class="status">Checking connection...</span>
+    <span id="status" class="status">
+      Checking connection...
+    </span>
   </header>
+
   <main>
     <section>
       <h2>Menu</h2>
       <div id="products" class="products"></div>
     </section>
+
     <section>
       <h2>Current Order</h2>
+
       <div id="cart"></div>
-      <p class="total">Total: Rs. <span id="total">0.00</span></p>
+
+      <p class="total">
+        Total: Rs. <span id="total">0.00</span>
+      </p>
+
       <label for="cash">Cash received (Rs.)</label>
-      <input id="cash" type="number" min="0" step="0.01">
-      <p>Change: Rs. <span id="change">0.00</span></p>
-      <button id="checkout" class="primary">Complete Sale</button>
+      <input
+        id="cash"
+        type="number"
+        min="0"
+        step="0.01"
+      >
+
+      <p>
+        Change: Rs. <span id="change">0.00</span>
+      </p>
+
+      <button id="checkout" class="primary">
+        Complete Sale
+      </button>
+
       <p id="message" role="status"></p>
+
       <hr>
-      <p>Pending cloud sync: <strong id="pending">0</strong></p>
-      <button id="export" class="secondary">Export local sales backup</button>
+
+      <p>
+        Pending cloud sync:
+        <strong id="pending">0</strong>
+      </p>
+
+      <button id="export" class="secondary">
+        Export local sales backup
+      </button>
+
+      <!-- CLOUD SYNCHRONIZATION -->
+      <div class="sync-panel">
+        <h3>Cloud Synchronization</h3>
+
+        <p id="device-status">
+          Checking device registration...
+        </p>
+
+        <div id="registration">
+          <label for="device-id">
+            Cashier PC ID
+          </label>
+
+          <input
+            id="device-id"
+            type="text"
+            placeholder="POS-01"
+            autocomplete="off"
+          >
+
+          <label for="registration-code">
+            Registration Code
+          </label>
+
+          <input
+            id="registration-code"
+            type="password"
+            placeholder="Enter one-time code"
+            autocomplete="off"
+          >
+
+          <button
+            id="register-device"
+            class="primary"
+          >
+            Register Cashier PC
+          </button>
+        </div>
+
+        <button
+          id="sync-now"
+          class="secondary"
+        >
+          Sync Now
+        </button>
+
+        <p id="sync-message" role="status">
+          Synchronization not started
+        </p>
+      </div>
     </section>
   </main>
 </body>
