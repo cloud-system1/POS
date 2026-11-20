@@ -1,167 +1,82 @@
 
-const DB_NAME = "veg_takeaway_pos";
-const DB_VERSION = 2;
+const CACHE = "veg-pos-v2";
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./app.js",
+  "./db.js",
+  "./sync.js",
+  "./manifest.webmanifest"
+];
 
-    request.onupgradeneeded = () => {
-      const db = request.result;
+// Install the updated POS files.
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS))
+  );
 
-      if (!db.objectStoreNames.contains("sales")) {
-        db.createObjectStore("sales", {
-          keyPath: "id"
-        });
+  self.skipWaiting();
+});
+
+// Remove only outdated Cache Storage entries.
+// IndexedDB sales and pending transactions are untouched.
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+
+      await Promise.all(
+        keys
+          .filter(key =>
+            key.startsWith("veg-pos-") && key !== CACHE
+          )
+          .map(key => caches.delete(key))
+      );
+
+      await self.clients.claim();
+    })()
+  );
+});
+
+// Handle network and offline access.
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  if (request.method !== "GET") return;
+  if (url.origin !== self.location.origin) return;
+
+  // API requests must never be cached.
+  if (url.pathname.startsWith("/api/")) return;
+
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(CACHE);
+
+      try {
+        // Use the latest available version.
+        const response = await fetch(request);
+
+        if (response.ok) {
+          await cache.put(request, response.clone());
+        }
+
+        return response;
+      } catch {
+        // Offline fallback.
+        const cached = await cache.match(request);
+
+        if (cached) return cached;
+
+        if (request.mode === "navigate") {
+          const offlinePage = await cache.match("./index.html");
+
+          if (offlinePage) return offlinePage;
+        }
+
+        return Response.error();
       }
-
-      if (!db.objectStoreNames.contains("outbox")) {
-        db.createObjectStore("outbox", {
-          keyPath: "id"
-        });
-      }
-
-      if (!db.objectStoreNames.contains("settings")) {
-        db.createObjectStore("settings", {
-          keyPath: "key"
-        });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    request.onblocked = () =>
-      reject(new Error(
-        "Database upgrade blocked. Close other POS tabs and retry."
-      ));
-  });
-}
-
-// Save a sale and its sync event in one transaction.
-async function saveSale(sale) {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(
-      ["sales", "outbox"],
-      "readwrite"
-    );
-
-    tx.objectStore("sales").add(sale);
-
-    tx.objectStore("outbox").add({
-      id: crypto.randomUUID(),
-      saleId: sale.id,
-      type: "sale.completed",
-      payload: sale,
-      createdAt: new Date().toISOString()
-    });
-
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-
-    tx.onabort = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
-}
-
-// Read all records from a store.
-async function getAll(storeName) {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readonly");
-    const request = tx.objectStore(storeName).getAll();
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-
-    tx.oncomplete = () => db.close();
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
-}
-
-// Save device registration information.
-async function setSetting(key, value) {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("settings", "readwrite");
-
-    tx.objectStore("settings").put({
-      key,
-      value
-    });
-
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-
-    tx.onabort = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
-}
-
-// Retrieve saved device registration information.
-async function getSetting(key) {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("settings", "readonly");
-    const request = tx.objectStore("settings").get(key);
-
-    request.onsuccess = () => {
-      resolve(request.result?.value ?? null);
-    };
-
-    request.onerror = () => reject(request.error);
-    tx.oncomplete = () => db.close();
-  });
-}
-
-// Remove a synchronized event after cloud acknowledgement.
-// This will be used when we implement the sync API.
-async function deleteOutboxEvent(eventId) {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("outbox", "readwrite");
-
-    tx.objectStore("outbox").delete(eventId);
-
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-
-    tx.onabort = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
-}
+    })()
+  );
+});
