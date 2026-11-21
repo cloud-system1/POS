@@ -887,9 +887,58 @@ async function requireAdmin(request, env) {
 // ==========================================
 
 
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // Reject cross-origin authentication changes
+    if (
+      url.pathname.startsWith("/api/auth/") &&
+      request.method === "POST" &&
+      request.headers.get("Origin") !== url.origin
+    ) {
+      return json({
+        error: "Invalid request origin"
+      }, 403);
+    }
+
+    // User login
+    if (url.pathname === "/api/auth/login") {
+
+      if (request.method !== "POST") {
+        return json({
+          error: "Method not allowed"
+        }, 405);
+      }
+
+      return loginUser(request, env);
+    }
+
+    // User logout
+    if (url.pathname === "/api/auth/logout") {
+
+      if (request.method !== "POST") {
+        return json({
+          error: "Method not allowed"
+        }, 405);
+      }
+
+      return logoutUser(request, env);
+    }
+
+    // Verify current user
+    if (url.pathname === "/api/auth/me") {
+
+      if (request.method !== "GET") {
+        return json({
+          error: "Method not allowed"
+        }, 405);
+      }
+
+      return currentUser(request, env);
+    }
+
 
     // First administrator setup
     if (url.pathname === "/api/auth/setup") {
