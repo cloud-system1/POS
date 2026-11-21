@@ -898,5 +898,833 @@
       </div>
     </div>
   </div>
+  
+<!-- =====================================
+     SALES HISTORY MODULE
+     ===================================== -->
+
+<style>
+  #sales-history-page {
+    padding: 24px;
+    background: #ffffff;
+    color: #151923;
+  }
+
+  .sh-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+
+  .sh-subtitle {
+    color: #777f8b;
+    font-size: 13px;
+    margin-bottom: 22px;
+  }
+
+  .sh-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .sh-card {
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,.03);
+  }
+
+  .sh-card-label {
+    color: #777f8b;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .sh-card-value {
+    font-size: 25px;
+    font-weight: bold;
+    color: #ea580c;
+    overflow-wrap: anywhere;
+  }
+
+  .sh-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .sh-filters input,
+  .sh-filters select {
+    width: auto;
+    flex: 1;
+    min-width: 130px;
+    padding: 11px;
+    margin: 0;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    font: inherit;
+    color: #151923;
+  }
+
+  #sh-refresh {
+    background: #f97316;
+    color: white;
+    font-weight: bold;
+  }
+
+  .sh-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+  }
+
+  .sh-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .sh-table th {
+    background: #f8fafc;
+    color: #475569;
+    text-align: left;
+    padding: 15px;
+  }
+
+  .sh-table td {
+    padding: 15px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .sh-table tbody tr:hover {
+    background: #fff7ed;
+  }
+
+  .sh-view {
+    background: #fff7ed;
+    color: #ea580c;
+    font-weight: bold;
+    border: 1px solid #fed7aa;
+    padding: 8px 12px;
+  }
+
+  .sh-empty {
+    text-align: center;
+    padding: 35px !important;
+    color: #777f8b;
+  }
+
+  #sh-receipt {
+    width: min(500px, 92vw);
+    max-height: 85vh;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: white;
+    color: #151923;
+    overflow-y: auto;
+  }
+
+  #sh-receipt::backdrop {
+    background: rgba(0,0,0,.5);
+  }
+
+  .sh-receipt-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .sh-receipt-header h2 {
+    font-size: 21px;
+    margin-bottom: 6px;
+  }
+
+  .sh-receipt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed #e5e7eb;
+    font-size: 13px;
+  }
+
+  .sh-receipt-total {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ea580c;
+  }
+
+  .sh-receipt-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .sh-receipt-actions button {
+    flex: 1;
+  }
+
+  @media (max-width: 750px) {
+    #sales-history-page {
+      padding: 12px;
+    }
+
+    .sh-summary {
+      gap: 7px;
+    }
+
+    .sh-card {
+      padding: 12px 8px;
+    }
+
+    .sh-card-label {
+      font-size: 11px;
+    }
+
+    .sh-card-value {
+      font-size: 16px;
+    }
+
+    .sh-table td,
+    .sh-table th {
+      padding: 12px;
+    }
+
+    .sh-filters {
+      gap: 8px;
+    }
+  }
+</style>
+
+<div id="sales-history-page" hidden>
+
+  <div class="sh-title">Sales History</div>
+
+  <div class="sh-subtitle">
+    Previous transactions on this cashier device
+  </div>
+
+  <div class="sh-summary">
+
+    <div class="sh-card">
+      <div class="sh-card-label">Total Sales</div>
+      <div id="sh-total" class="sh-card-value">
+        Rs. 0.00
+      </div>
+    </div>
+
+    <div class="sh-card">
+      <div class="sh-card-label">Completed Bills</div>
+      <div id="sh-count" class="sh-card-value">
+        0
+      </div>
+    </div>
+
+    <div class="sh-card">
+      <div class="sh-card-label">Average Bill</div>
+      <div id="sh-average" class="sh-card-value">
+        Rs. 0.00
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sh-filters">
+
+    <select id="sh-period">
+      <option value="today">Today</option>
+      <option value="yesterday">Yesterday</option>
+      <option value="week">Last 7 Days</option>
+      <option value="month">Last 30 Days</option>
+      <option value="all">All Sales</option>
+      <option value="custom">Custom Date</option>
+    </select>
+
+    <input
+      id="sh-date"
+      type="date"
+      aria-label="Sales date"
+      hidden
+    >
+
+    <input
+      id="sh-search"
+      type="search"
+      placeholder="Search bill or product..."
+      aria-label="Search sales"
+      autocomplete="off"
+    >
+
+    <button id="sh-refresh" type="button">
+      Refresh
+    </button>
+
+  </div>
+
+  <div class="sh-table-wrapper">
+
+    <table class="sh-table">
+
+      <thead>
+        <tr>
+          <th>Bill ID</th>
+          <th>Date & Time</th>
+          <th>Items</th>
+          <th>Payment</th>
+          <th>Total</th>
+          <th>Receipt</th>
+        </tr>
+      </thead>
+
+      <tbody id="sh-table-body"></tbody>
+
+    </table>
+
+  </div>
+
+  <p id="sh-status" role="status"></p>
+
+</div>
+
+<!-- RECEIPT WINDOW -->
+
+<dialog id="sh-receipt">
+
+  <div class="sh-receipt-header">
+    <h2>VEG TAKEAWAY</h2>
+    <div>Sales Receipt</div>
+  </div>
+
+  <div id="sh-receipt-content"></div>
+
+  <div class="sh-receipt-actions">
+
+    <button
+      id="sh-print"
+      class="primary"
+      type="button"
+    >
+      Print / Save PDF
+    </button>
+
+    <button
+      id="sh-close-receipt"
+      class="secondary"
+      type="button"
+    >
+      Close
+    </button>
+
+  </div>
+
+</dialog>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const byId = id => document.getElementById(id);
+
+  const billingButton =
+    document.querySelector('.nav-link[title="Billing"]');
+
+  const historyButton =
+    byId("sales-history-button");
+
+  const billingPage =
+    document.querySelector(".page-content");
+
+  const historyPage =
+    byId("sales-history-page");
+
+  const workspace =
+    document.querySelector(".workspace");
+
+  const receipt =
+    byId("sh-receipt");
+
+  if (!billingButton || !historyButton ||
+      !billingPage || !workspace) {
+    console.error("Sales History navigation not found.");
+    return;
+  }
+
+  workspace.appendChild(historyPage);
+
+  let savedSales = [];
+  let currentReceipt = null;
+  let historyActive = false;
+
+  function formatMoney(cents) {
+    return "Rs. " + (
+      Number(cents || 0) / 100
+    ).toLocaleString("en-LK", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function localDate(value) {
+    const date = new Date(value);
+
+    const parts = new Intl.DateTimeFormat(
+      "en-GB", {
+        timeZone: "Asia/Colombo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }
+    ).formatToParts(date);
+
+    const part = type =>
+      parts.find(p => p.type === type)?.value;
+
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  }
+
+  function dateBefore(days) {
+    return localDate(
+      Date.now() - days * 86400000
+    );
+  }
+
+  function formatDate(value) {
+    return new Date(value).toLocaleString(
+      "en-GB", {
+        timeZone: "Asia/Colombo"
+      }
+    );
+  }
+
+  function itemName(item) {
+    return [item.name, item.size]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  function itemQuantity(item) {
+    return Number(item.qty ?? item.quantity ?? 1);
+  }
+
+  function itemPrice(item) {
+    return Number(
+      item.price ?? item.unitPriceCents ?? 0
+    );
+  }
+
+  function shortId(sale) {
+    return String(sale.id || "")
+      .slice(0, 8)
+      .toUpperCase();
+  }
+
+  function showBilling() {
+    historyActive = false;
+
+    historyPage.hidden = true;
+    billingPage.hidden = false;
+
+    historyButton.classList.remove("active");
+    historyButton.removeAttribute("aria-current");
+
+    billingButton.classList.add("active");
+    billingButton.setAttribute("aria-current", "page");
+
+    if (receipt.open) receipt.close();
+
+    byId("product-search")?.focus();
+  }
+
+  async function showHistory() {
+    historyActive = true;
+
+    document.activeElement?.blur();
+
+    billingPage.hidden = true;
+    historyPage.hidden = false;
+
+    billingButton.classList.remove("active");
+    billingButton.removeAttribute("aria-current");
+
+    historyButton.classList.add("active");
+    historyButton.setAttribute("aria-current", "page");
+
+    await loadSales();
+  }
+
+  billingButton.addEventListener("click", showBilling);
+
+  historyButton.addEventListener("click", showHistory);
+
+  // Prevent billing shortcuts while viewing history.
+  window.addEventListener("keydown", event => {
+    if (!historyActive) return;
+
+    if (event.key === "F2") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      byId("sh-search").focus();
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      if (receipt.open) {
+        receipt.close();
+      } else {
+        showBilling();
+      }
+
+      return;
+    }
+
+    // Stop global billing keyboard handlers
+    // without blocking normal input typing.
+    event.stopImmediatePropagation();
+
+    if (["F4", "F8"].includes(event.key)) {
+      event.preventDefault();
+    }
+  }, true);
+
+  async function loadSales() {
+    byId("sh-status").textContent =
+      "Loading sales history...";
+
+    try {
+      savedSales = await getAll("sales");
+
+      savedSales.sort((a, b) =>
+        new Date(b.createdAt) -
+        new Date(a.createdAt)
+      );
+
+      renderHistory();
+
+      byId("sh-status").textContent =
+        "Sales loaded from this device.";
+
+    } catch (error) {
+      savedSales = [];
+      renderHistory();
+
+      byId("sh-status").textContent =
+        "Unable to load sales: " + error.message;
+    }
+  }
+
+  function matchesDate(sale) {
+    const period = byId("sh-period").value;
+    const day = localDate(sale.createdAt);
+
+    if (period === "today") {
+      return day === dateBefore(0);
+    }
+
+    if (period === "yesterday") {
+      return day === dateBefore(1);
+    }
+
+    if (period === "week") {
+      return day >= dateBefore(6) &&
+             day <= dateBefore(0);
+    }
+
+    if (period === "month") {
+      return day >= dateBefore(29) &&
+             day <= dateBefore(0);
+    }
+
+    if (period === "custom") {
+      return day === byId("sh-date").value;
+    }
+
+    return true;
+  }
+
+  function renderHistory() {
+    const search = byId("sh-search")
+      .value.trim().toLowerCase();
+
+    const filtered = savedSales.filter(sale => {
+
+      if (!matchesDate(sale)) return false;
+
+      const items = (sale.items || [])
+        .map(itemName)
+        .join(" ");
+
+      const searchable = [
+        sale.id,
+        items,
+        sale.paymentMethod
+      ].join(" ").toLowerCase();
+
+      return !search || searchable.includes(search);
+    });
+
+    const total = filtered.reduce(
+      (sum, sale) =>
+        sum + Number(sale.totalCents || 0),
+      0
+    );
+
+    byId("sh-total").textContent =
+      formatMoney(total);
+
+    byId("sh-count").textContent =
+      filtered.length;
+
+    byId("sh-average").textContent =
+      formatMoney(
+        filtered.length
+          ? Math.round(total / filtered.length)
+          : 0
+      );
+
+    const tbody = byId("sh-table-body");
+
+    tbody.replaceChildren();
+
+    if (!filtered.length) {
+      const row = tbody.insertRow();
+      const cell = row.insertCell();
+
+      cell.colSpan = 6;
+      cell.className = "sh-empty";
+      cell.textContent = "No sales found.";
+
+      return;
+    }
+
+    filtered.forEach(sale => {
+      const row = tbody.insertRow();
+
+      const quantity = (sale.items || [])
+        .reduce((sum, item) =>
+          sum + itemQuantity(item), 0
+        );
+
+      const values = [
+        "#" + shortId(sale),
+        formatDate(sale.createdAt),
+        quantity,
+        String(sale.paymentMethod || "cash")
+          .toUpperCase(),
+        formatMoney(sale.totalCents)
+      ];
+
+      values.forEach(value => {
+        row.insertCell().textContent = value;
+      });
+
+      const actionCell = row.insertCell();
+
+      const viewButton =
+        document.createElement("button");
+
+      viewButton.type = "button";
+      viewButton.className = "sh-view";
+      viewButton.textContent = "View Bill";
+
+      viewButton.addEventListener("click", () => {
+        openReceipt(sale);
+      });
+
+      actionCell.appendChild(viewButton);
+    });
+  }
+
+  function receiptRow(container, label, value, bold) {
+    const row = document.createElement("div");
+
+    row.className = "sh-receipt-row";
+
+    if (bold) {
+      row.classList.add("sh-receipt-total");
+    }
+
+    const left = document.createElement("span");
+    const right = document.createElement("span");
+
+    left.textContent = label;
+    right.textContent = value;
+
+    row.append(left, right);
+    container.appendChild(row);
+  }
+
+  function openReceipt(sale) {
+    currentReceipt = sale;
+
+    const content = byId("sh-receipt-content");
+
+    content.replaceChildren();
+
+    receiptRow(
+      content, "Bill ID", "#" + shortId(sale)
+    );
+
+    receiptRow(
+      content, "Date", formatDate(sale.createdAt)
+    );
+
+    receiptRow(
+      content,
+      "Payment",
+      String(sale.paymentMethod || "cash").toUpperCase()
+    );
+
+    const heading = document.createElement("h3");
+
+    heading.textContent = "Purchased Items";
+
+    content.appendChild(heading);
+
+    (sale.items || []).forEach(item => {
+      const qty = itemQuantity(item);
+      const price = itemPrice(item);
+
+      receiptRow(
+        content,
+        itemName(item) + " x " + qty +
+        " @ " + formatMoney(price),
+        formatMoney(price * qty)
+      );
+    });
+
+    receiptRow(
+      content,
+      "Total",
+      formatMoney(sale.totalCents),
+      true
+    );
+
+    receiptRow(
+      content,
+      "Cash Received",
+      formatMoney(sale.receivedCents)
+    );
+
+    receiptRow(
+      content,
+      "Change",
+      formatMoney(sale.changeCents)
+    );
+
+    const thanks = document.createElement("p");
+
+    thanks.textContent = "Thank you! Visit us again.";
+    thanks.style.textAlign = "center";
+    thanks.style.marginTop = "20px";
+    thanks.style.color = "#777f8b";
+
+    content.appendChild(thanks);
+
+    if (!receipt.open) {
+      receipt.showModal();
+    }
+  }
+
+  byId("sh-period").addEventListener("change", () => {
+    byId("sh-date").hidden =
+      byId("sh-period").value !== "custom";
+
+    renderHistory();
+  });
+
+  byId("sh-date").value = dateBefore(0);
+
+  byId("sh-date").addEventListener(
+    "change", renderHistory
+  );
+
+  byId("sh-search").addEventListener(
+    "input", renderHistory
+  );
+
+  byId("sh-refresh").addEventListener(
+    "click", loadSales
+  );
+
+  byId("sh-close-receipt").addEventListener(
+    "click", () => receipt.close()
+  );
+
+  byId("sh-print").addEventListener("click", () => {
+    if (!currentReceipt) return;
+
+    const printWindow = window.open(
+      "", "_blank", "width=450,height=700"
+    );
+
+    if (!printWindow) {
+      alert("Please allow pop-ups to print the receipt.");
+      return;
+    }
+
+    const doc = printWindow.document;
+
+    doc.title = "Veg Takeaway Receipt";
+
+    const style = doc.createElement("style");
+
+    style.textContent = `
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 340px;
+        margin: 25px auto;
+        padding: 15px;
+        color: #111;
+      }
+
+      h2 { text-align: center; }
+
+      .sh-receipt-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px dashed #aaa;
+        font-size: 13px;
+      }
+
+      .sh-receipt-total {
+        font-size: 18px;
+        font-weight: bold;
+      }
+    `;
+
+    doc.head.appendChild(style);
+
+    const title = doc.createElement("h2");
+    title.textContent = "VEG TAKEAWAY";
+
+    doc.body.appendChild(title);
+
+    doc.body.appendChild(
+      doc.importNode(
+        byId("sh-receipt-content"), true
+      )
+    );
+
+    printWindow.focus();
+    printWindow.print();
+  });
+
+});
+</script>
+
+<!-- END SALES HISTORY MODULE -->
+
 </body>
 </html>
