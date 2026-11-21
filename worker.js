@@ -509,6 +509,384 @@ async function setupAdmin(request, env) {
 // ==========================================
 
 
+// ==========================================
+// USER LOGIN AND SESSION MANAGEMENT
+// ==========================================
+
+const SESSION_DURATION = 12 * 60 * 60 * 1000;
+
+function publicUser(user) {
+  return {
+    userId: user.user_id,
+    username: user.username,
+    fullName: user.full_name,
+    role: user.role
+  };
+}
+
+// ------------------------------------------
+// USER LOGIN
+// ------------------------------------------
+
+async function loginUser(request, env) {
+  if (!env.DB) {
+    return json({
+      error: "Database unavailable"
+    }, 503);
+  }
+
+  let body;
+
+  try {
+    body = await readJSON(request, 4096);
+  } catch {
+    return json({
+      error: "Invalid login request"
+    }, 400);
+  }
+
+  const username = String(
+    body?.username || ""
+  ).trim().toLowerCase();
+
+  const password = body?.password;
+
+  if (
+    !validUsername(username) ||
+    !validPassword(password)
+  ) {
+    return json({
+      error: "Invalid username or password"
+    }, 401);
+  }
+
+  try {
+    const user = await env.DB.prepare(`
+      SELECT *
+      FROM users
+      WHERE username = ?
+      LIMIT 1
+    `).bind(username).first();
+
+    if (!user || !user.is_active) {
+      return json({
+        error: "Invalid username or password"
+      }, 401);
+    }
+
+    if (
+      user.locked_until &&
+      Date.parse(user.locked_until) > Date.now()
+    ) {
+      return json({
+        error: "Account temporarily locked. Try again later."
+      }, 429);
+    }
+
+    const passwordHash = await hashPassword(
+      password,
+      user.password_salt,
+      user.password_iterations
+    );
+
+    if (!secureEqual(
+      passwordHash,
+      user.password_hash
+    )) {
+
+      const now = new Date().toISOString();
+
+      await env.DB.prepare(`
+        UPDATE users
+        SET failed_attempts =
+          CASE
+            WHEN locked_until IS NOT NULL
+              AND locked_until <= ?
+            THEN 1
+            ELSE failed_attempts + 1
+          END,
+          locked_until =
+          CASE
+            WHEN locked_until > ?
+            THEN locked_until
+            WHEN locked_until IS NOT NULL
+              AND locked_until <= ?
+            THEN NULL
+            WHEN failed_attempts + 1 >= 5
+            THEN ?
+            ELSE NULL
+          END
+        WHERE user_id = ?
+      `).bind(
+        now,
+        now,
+        now,
+        new Date(
+          Date.now() + 15 * 60 * 1000
+        ).toISOString(),
+        user.user_id
+      ).run();
+
+      return json({
+        error: "Invalid username or password"
+      }, 401);
+    }
+
+    const token = randomToken();
+    const tokenHash = await sha256(token);
+    const sessionId = crypto.randomUUID();
+
+    const expiresAt = new Date(
+      Date.now() + SESSION_DURATION
+    ).toISOString();
+
+    const result = await env.DB.batch([
+
+      env.DB.prepare(`
+        INSERT INTO user_sessions (
+          session_id,
+          user_id,
+          token_hash,
+          expires_at
+        )
+        SELECT ?, user_id, ?, ?
+        FROM users
+        WHERE user_id = ?
+          AND is_active = 1
+          AND (
+            locked_until IS NULL
+            OR locked_until <= ?
+          )
+      `).bind(
+        sessionId,
+        tokenHash,
+        expiresAt,
+        user.user_id,
+        new Date().toISOString()
+      ),
+
+      env.DB.prepare(`
+        UPDATE users
+        SET failed_attempts = 0,
+            locked_until = NULL,
+            last_login = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+          AND EXISTS (
+            SELECT 1 FROM user_sessions
+            WHERE session_id = ?
+              AND user_id = users.user_id
+          )
+      `).bind(user.user_id, sessionId)
+
+    ]);
+
+    if (result[0].meta.changes !== 1) {
+      return json({
+        error: "Login unavailable"
+      }, 401);
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        expiresAt,
+        user: publicUser(user)
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+          "Set-Cookie":
+            "__Host-pos_session=" + token +
+            "; Path=/" +
+            "; HttpOnly" +
+            "; Secure" +
+            "; SameSite=Strict" +
+            "; Max-Age=43200"
+        }
+      }
+    );
+
+  } catch {
+    return json({
+      error: "Login service unavailable"
+    }, 503);
+  }
+}
+
+// ------------------------------------------
+// EXTRACT USER SESSION COOKIE
+// ------------------------------------------
+
+function getUserSessionToken(request) {
+
+  const cookies =
+    request.headers.get("Cookie") || "";
+
+  const match =
+    /(?:^|;\s*)__Host-pos_session=([a-f0-9]{64})(?:;|$)/i
+      .exec(cookies);
+
+  return match ? match[1] : null;
+}
+
+// ------------------------------------------
+// VERIFY USER SESSION
+// ------------------------------------------
+
+async function authenticateUser(request, env) {
+
+  if (!env.DB) return null;
+
+  const token = getUserSessionToken(request);
+
+  if (!token) return null;
+
+  const tokenHash = await sha256(token);
+
+  const now = new Date().toISOString();
+
+  const user = await env.DB.prepare(`
+    SELECT
+      u.user_id,
+      u.username,
+      u.full_name,
+      u.role,
+      s.session_id,
+      s.expires_at
+    FROM user_sessions s
+    INNER JOIN users u
+      ON u.user_id = s.user_id
+    WHERE s.token_hash = ?
+      AND s.revoked_at IS NULL
+      AND s.expires_at > ?
+      AND u.is_active = 1
+    LIMIT 1
+  `).bind(
+    tokenHash,
+    now
+  ).first();
+
+  return user || null;
+}
+
+// ------------------------------------------
+// CURRENT LOGGED-IN USER
+// ------------------------------------------
+
+async function currentUser(request, env) {
+
+  try {
+    const user = await authenticateUser(
+      request,
+      env
+    );
+
+    if (!user) {
+      return json({
+        error: "Not authenticated"
+      }, 401);
+    }
+
+    return json({
+      success: true,
+      user: publicUser(user),
+      expiresAt: user.expires_at
+    });
+
+  } catch {
+    return json({
+      error: "Session verification unavailable"
+    }, 503);
+  }
+}
+
+// ------------------------------------------
+// USER LOGOUT
+// ------------------------------------------
+
+async function logoutUser(request, env) {
+
+  try {
+    const token = getUserSessionToken(request);
+
+    if (token) {
+
+      const tokenHash = await sha256(token);
+
+      await env.DB.prepare(`
+        UPDATE user_sessions
+        SET revoked_at = CURRENT_TIMESTAMP
+        WHERE token_hash = ?
+          AND revoked_at IS NULL
+      `).bind(tokenHash).run();
+
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Logged out successfully"
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+          "Set-Cookie":
+            "__Host-pos_session=" +
+            "; Path=/" +
+            "; HttpOnly" +
+            "; Secure" +
+            "; SameSite=Strict" +
+            "; Max-Age=0"
+        }
+      }
+    );
+
+  } catch {
+    return json({
+      error: "Logout failed"
+    }, 503);
+  }
+}
+
+// ------------------------------------------
+// ADMINISTRATOR PERMISSION CHECK
+// ------------------------------------------
+
+async function requireAdmin(request, env) {
+
+  const user = await authenticateUser(
+    request,
+    env
+  );
+
+  if (!user) {
+    return {
+      error: json({
+        error: "Authentication required"
+      }, 401)
+    };
+  }
+
+  if (user.role !== "admin") {
+    return {
+      error: json({
+        error: "Administrator access required"
+      }, 403)
+    };
+  }
+
+  return { user };
+}
+
+// ==========================================
+// END USER AUTHENTICATION
+// ==========================================
+
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
