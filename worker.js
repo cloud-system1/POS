@@ -182,19 +182,17 @@ async function syncSale(request, env) {
     return json({ error: "Invalid sale event" }, 400);
   }
 
-  // Local POS totals are stored in rupees.
-  // Convert to integer cents for D1.
-  const total = Number(sale.total);
+ // POS stores monetary amounts as integer cents.
+  // Preserve the exact amount without conversion.
+  const totalCents = sale.totalCents;
 
   if (
-    !Number.isFinite(total) ||
-    total < 0 ||
-    total > 100000000
+    !Number.isSafeInteger(totalCents) ||
+    totalCents < 0 ||
+    totalCents > 10000000000
   ) {
     return json({ error: "Invalid sale total" }, 400);
   }
-
-  const totalCents = Math.round(total * 100);
 
   const createdAt = sale.createdAt ||
     event.createdAt;
