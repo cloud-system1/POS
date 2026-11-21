@@ -25,6 +25,86 @@ async function sha256(value) {
   ).join("");
 }
 
+// ==========================================
+// USER AUTHENTICATION - PASSWORD SECURITY
+// ==========================================
+
+const PASSWORD_ITERATIONS = 100000;
+
+function randomSalt() {
+  return randomToken();
+}
+
+async function hashPassword(
+  password,
+  salt,
+  iterations = PASSWORD_ITERATIONS
+) {
+  const encoder = new TextEncoder();
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: iterations,
+      hash: "SHA-256"
+    },
+    key,
+    256
+  );
+
+  return Array.from(
+    new Uint8Array(bits),
+    b => b.toString(16).padStart(2, "0")
+  ).join("");
+}
+
+function secureEqual(a, b) {
+  if (
+    typeof a !== "string" ||
+    typeof b !== "string" ||
+    a.length !== b.length
+  ) {
+    return false;
+  }
+
+  let difference = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    difference |=
+      a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+
+  return difference === 0;
+}
+
+function validUsername(username) {
+  return /^[a-zA-Z0-9_.-]{3,40}$/.test(
+    username
+  );
+}
+
+function validPassword(password) {
+  return (
+    typeof password === "string" &&
+    password.length >= 12 &&
+    password.length <= 128
+  );
+}
+
+// ==========================================
+// END PASSWORD SECURITY
+// ==========================================
+
+
 // Read a small JSON request safely.
 async function readJSON(request, maxLength = 65536) {
   const length = Number(
@@ -294,9 +374,155 @@ async function syncSale(request, env) {
   }
 }
 
+
+// ==========================================
+// CREATE FIRST ADMINISTRATOR
+// ==========================================
+
+async function setupAdmin(request, env) {
+  if (!env.DB || !env.ADMIN_SETUP_SECRET) {
+    return json({
+      error: "Administrator setup unavailable"
+    }, 503);
+  }
+
+  const suppliedSecret =
+    request.headers.get("X-Setup-Secret") || "";
+
+  if (
+    !suppliedSecret ||
+    !secureEqual(
+      await sha256(suppliedSecret),
+      await sha256(env.ADMIN_SETUP_SECRET)
+    )
+  ) {
+    return json({
+      error: "Unauthorized setup request"
+    }, 403);
+  }
+
+  try {
+    const existingAdmin = await env.DB.prepare(`
+      SELECT user_id
+      FROM users
+      WHERE role = 'admin'
+      LIMIT 1
+    `).first();
+
+    if (existingAdmin) {
+      return json({
+        error: "Administrator already exists"
+      }, 409);
+    }
+
+    let body;
+
+    try {
+      body = await readJSON(request, 4096);
+    } catch {
+      return json({
+        error: "Invalid request"
+      }, 400);
+    }
+
+    const username = String(
+      body?.username || ""
+    ).trim().toLowerCase();
+
+    const fullName = String(
+      body?.fullName || ""
+    ).trim();
+
+    const password = body?.password;
+
+    if (
+      !validUsername(username) ||
+      !validPassword(password) ||
+      !fullName ||
+      fullName.length > 100
+    ) {
+      return json({
+        error: "Invalid account details"
+      }, 400);
+    }
+
+    const userId = crypto.randomUUID();
+    const salt = randomSalt();
+
+    const passwordHash = await hashPassword(
+      password,
+      salt
+    );
+
+    const result = await env.DB.prepare(`
+      INSERT INTO users (
+        user_id,
+        username,
+        full_name,
+        password_hash,
+        password_salt,
+        password_iterations,
+        role,
+        is_active
+      )
+      SELECT ?, ?, ?, ?, ?, ?, 'admin', 1
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM users
+        WHERE role = 'admin'
+      )
+    `).bind(
+      userId,
+      username,
+      fullName,
+      passwordHash,
+      salt,
+      PASSWORD_ITERATIONS
+    ).run();
+
+    if (result.meta.changes !== 1) {
+      return json({
+        error: "Administrator already exists"
+      }, 409);
+    }
+
+    return json({
+      success: true,
+      message: "Administrator created successfully",
+      user: {
+        userId,
+        username,
+        fullName,
+        role: "admin"
+      }
+    }, 201);
+
+  } catch {
+    return json({
+      error: "Administrator creation failed"
+    }, 503);
+  }
+}
+
+// ==========================================
+// END ADMINISTRATOR SETUP
+// ==========================================
+
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // First administrator setup
+    if (url.pathname === "/api/auth/setup") {
+      if (request.method !== "POST") {
+        return json({
+          error: "Method not allowed"
+        }, 405);
+      }
+
+      return setupAdmin(request, env);
+    }
 
     if (url.pathname === "/api/register") {
       if (request.method !== "POST") {
