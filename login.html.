@@ -1,0 +1,712 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <meta name="theme-color" content="#0f172a">
+
+  <title>Login | Premium POS</title>
+
+  <link rel="manifest" href="./manifest.webmanifest">
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --blue: #2563eb;
+      --blue-light: #60a5fa;
+      --black: #09090b;
+      --navy: #0f172a;
+      --white: #ffffff;
+      --muted: #94a3b8;
+      --border: #334155;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      color: var(--white);
+      background:
+        radial-gradient(
+          ellipse at top left,
+          #1e40af 0%,
+          transparent 45%
+        ),
+        radial-gradient(
+          ellipse at bottom right,
+          #172554 0%,
+          transparent 50%
+        ),
+        #020617;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 35px;
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: 0 25px 80px rgba(0,0,0,.5);
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .logo {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 18px;
+      border-radius: 19px;
+      background: linear-gradient(
+        135deg,
+        #3b82f6,
+        #1d4ed8
+      );
+      display: grid;
+      place-items: center;
+      box-shadow: 0 8px 30px rgba(37,99,235,.3);
+    }
+
+    .logo svg {
+      width: 40px;
+      height: 40px;
+      fill: none;
+      stroke: white;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: -1px;
+      font-weight: 800;
+    }
+
+    .brand h1 span {
+      color: var(--blue-light);
+    }
+
+    .brand p {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1.4px;
+      line-height: 1.6;
+      margin: 10px 0 0;
+    }
+
+    .heading {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+      margin-bottom: 25px;
+    }
+
+    .heading h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      color: white;
+    }
+
+    .heading p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 9px;
+      color: #e2e8f0;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      top: 50%;
+      left: 14px;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: var(--muted);
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+
+    input {
+      width: 100%;
+      padding: 15px 14px 15px 43px;
+      border: 1px solid var(--border);
+      background: var(--navy);
+      border-radius: 10px;
+      color: white;
+      outline: none;
+      font-size: 14px;
+      transition: .2s;
+    }
+
+    input::placeholder {
+      color: #94a3b8;
+    }
+
+    input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.18);
+    }
+
+    #password {
+      padding-right: 65px;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 6px;
+    }
+
+    .toggle-password:hover {
+      color: white;
+    }
+
+    #login-button {
+      width: 100%;
+      background: linear-gradient(
+        135deg,
+        #3b82f6,
+        #1d4ed8
+      );
+      border: none;
+      border-radius: 10px;
+      color: white;
+      padding: 15px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s;
+      box-shadow: 0 7px 20px rgba(37,99,235,.22);
+    }
+
+    #login-button:hover {
+      background: #1d4ed8;
+    }
+
+    #login-button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    #message {
+      font-size: 13px;
+      line-height: 1.5;
+      border-radius: 9px;
+      overflow-wrap: anywhere;
+    }
+
+    #message:not(:empty) {
+      padding: 12px;
+      margin-top: 15px;
+    }
+
+    .error {
+      background: rgba(239,68,68,.12);
+      color: #fca5a5;
+      border: 1px solid #7f1d1d;
+    }
+
+    .success {
+      background: rgba(34,197,94,.12);
+      color: #86efac;
+      border: 1px solid #166534;
+    }
+
+    .security {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 25px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .security svg {
+      width: 17px;
+      height: 17px;
+      stroke: var(--blue-light);
+      stroke-width: 1.8;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .connection {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(34,197,94,.4);
+    }
+
+    .dot.offline {
+      background: #ef4444;
+      box-shadow: none;
+    }
+
+    .footer {
+      margin-top: 25px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .copyright {
+      margin: 0 0 9px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .developer {
+      margin: 0;
+      font-size: 13px;
+      color: white;
+      font-weight: 600;
+      letter-spacing: .2px;
+    }
+
+    .developer span {
+      color: var(--blue-light);
+    }
+
+    @media (max-width: 450px) {
+
+      body {
+        padding: 15px;
+      }
+
+      .login-card {
+        padding: 25px;
+      }
+
+      .brand h1 {
+        font-size: 27px;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <main class="login-card">
+
+    <div class="brand">
+
+      <div class="logo">
+
+        <svg viewBox="0 0 24 24"
+             aria-hidden="true">
+
+          <path d="M3 9l2-6h14l2 6"/>
+
+          <path d="M3 9h18v2a3 3 0 0 1-6 0
+                   3 3 0 0 1-6 0
+                   3 3 0 0 1-6 0z"/>
+
+          <path d="M5 14v7h14v-7"/>
+
+          <path d="M9 21v-5h6v5"/>
+
+        </svg>
+
+      </div>
+
+      <h1>Premium <span>POS</span></h1>
+
+      <p>SMART BUSINESS MANAGEMENT SYSTEM</p>
+
+    </div>
+
+    <div class="heading">
+
+      <h2>Welcome back</h2>
+
+      <p>Sign in to manage your business.</p>
+
+    </div>
+
+    <form id="login-form">
+
+      <div class="field">
+
+        <label for="username">
+          Username
+        </label>
+
+        <div class="input-wrapper">
+
+          <svg class="input-icon"
+               viewBox="0 0 24 24"
+               aria-hidden="true">
+
+            <circle cx="12" cy="8" r="4"/>
+
+            <path d="M4 21v-2a8 8 0 0 1 16 0v2"/>
+
+          </svg>
+
+          <input
+            id="username"
+            name="username"
+            type="text"
+            placeholder="Enter your username"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            maxlength="40"
+            required
+          >
+
+        </div>
+
+      </div>
+
+      <div class="field">
+
+        <label for="password">
+          Password
+        </label>
+
+        <div class="input-wrapper">
+
+          <svg class="input-icon"
+               viewBox="0 0 24 24"
+               aria-hidden="true">
+
+            <rect x="4" y="10"
+                  width="16" height="11"
+                  rx="2"/>
+
+            <path d="M8 10V6a4 4 0 0 1 8 0v4"/>
+
+            <path d="M12 14v3"/>
+
+          </svg>
+
+          <input
+            id="password"
+            name="password"
+            type="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            maxlength="128"
+            required
+          >
+
+          <button
+            id="toggle-password"
+            class="toggle-password"
+            type="button"
+            aria-label="Show password"
+            aria-pressed="false"
+          >
+            Show
+          </button>
+
+        </div>
+
+      </div>
+
+      <button
+        id="login-button"
+        type="submit"
+      >
+        Sign In
+      </button>
+
+      <div
+        id="message"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+    </form>
+
+    <div class="security">
+
+      <svg viewBox="0 0 24 24"
+           aria-hidden="true">
+
+        <path d="M12 3l8 3v6c0 5-8 9-8 9
+                 s-8-4-8-9V6z"/>
+
+        <path d="M9 12l2 2 4-4"/>
+
+      </svg>
+
+      Secure POS Authentication
+
+    </div>
+
+    <div class="connection">
+
+      <span id="connection-dot"
+            class="dot"></span>
+
+      <span id="connection-text">
+        Checking connection...
+      </span>
+
+    </div>
+
+    <div class="footer">
+
+      <p class="copyright">
+        &copy; <span id="year">2026</span>
+        Premium POS. All rights reserved.
+      </p>
+
+      <p class="developer">
+        Powered by <span>GTG Sollutions</span>
+      </p>
+
+    </div>
+
+  </main>
+
+  <script>
+
+    const form =
+      document.getElementById("login-form");
+
+    const username =
+      document.getElementById("username");
+
+    const password =
+      document.getElementById("password");
+
+    const loginButton =
+      document.getElementById("login-button");
+
+    const togglePassword =
+      document.getElementById("toggle-password");
+
+    const message =
+      document.getElementById("message");
+
+    document.getElementById("year").textContent =
+      new Date().getFullYear();
+
+    function showMessage(text, type) {
+
+      message.textContent = text;
+      message.className = type;
+
+    }
+
+    function updateConnection() {
+
+      const online = navigator.onLine;
+
+      document.getElementById(
+        "connection-dot"
+      ).classList.toggle("offline", !online);
+
+      document.getElementById(
+        "connection-text"
+      ).textContent = online
+        ? "Network connected"
+        : "Offline - Internet required for login";
+
+    }
+
+    window.addEventListener(
+      "online",
+      updateConnection
+    );
+
+    window.addEventListener(
+      "offline",
+      updateConnection
+    );
+
+    updateConnection();
+
+    togglePassword.addEventListener(
+      "click",
+      () => {
+
+        const hidden =
+          password.type === "password";
+
+        password.type =
+          hidden ? "text" : "password";
+
+        togglePassword.textContent =
+          hidden ? "Hide" : "Show";
+
+        togglePassword.setAttribute(
+          "aria-label",
+          hidden ? "Hide password" : "Show password"
+        );
+
+        togglePassword.setAttribute(
+          "aria-pressed",
+          String(hidden)
+        );
+
+      }
+    );
+
+    form.addEventListener(
+      "submit",
+      async event => {
+
+        event.preventDefault();
+
+        if (loginButton.disabled) return;
+
+        showMessage("", "");
+
+        if (!navigator.onLine) {
+
+          showMessage(
+            "Internet connection is required to sign in.",
+            "error"
+          );
+
+          return;
+
+        }
+
+        loginButton.disabled = true;
+        loginButton.textContent = "Signing in...";
+
+        let signedIn = false;
+
+        try {
+
+          const response = await fetch(
+            "/api/auth/login",
+            {
+              method: "POST",
+              credentials: "same-origin",
+              cache: "no-store",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                username: username.value.trim(),
+                password: password.value
+              })
+            }
+          );
+
+          const result = await response.json();
+
+          if (!response.ok || !result.success) {
+
+            showMessage(
+              result.error || "Login failed.",
+              "error"
+            );
+
+            return;
+
+          }
+
+          signedIn = true;
+
+          password.value = "";
+
+          showMessage(
+            "Welcome, " +
+            result.user.fullName +
+            "! Signed in as " +
+            result.user.role.toUpperCase() +
+            ".",
+            "success"
+          );
+
+          loginButton.textContent = "Success";
+
+          setTimeout(() => {
+
+            window.location.replace("./index.html");
+
+          }, 800);
+
+        } catch (error) {
+
+          showMessage(
+            "Unable to connect to the login server. Please try again.",
+            "error"
+          );
+
+        } finally {
+
+          if (!signedIn) {
+
+            loginButton.disabled = false;
+            loginButton.textContent = "Sign In";
+
+          }
+
+        }
+
+      }
+    );
+
+    username.focus();
+
+  </script>
+
+</body>
+</html>
