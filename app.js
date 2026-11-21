@@ -107,7 +107,21 @@ const products = [
   { id: "M076", category: "Water", name: "Water Bottle", size: "1.5Ltr", price: 15000 }
 ];
 
-// Money is stored as integer cents.
+// Category numbers are permanent. Item numbers follow menu order.
+const categoryNames = [
+  "Wada", "Dosa", "Parota", "Special Items", "Rice", "Chapathi",
+  "Poori", "Idli", "Rulan Pittu", "String Hopper", "Sweet", "Tea",
+  "Extra Curry", "Juice", "Soft Drinks", "Water"
+];
+const categoryCodes = new Map(categoryNames.map((name, i) => [name, i + 1]));
+const counters = new Map();
+
+products.forEach(product => {
+  const next = (counters.get(product.category) || 0) + 1;
+  counters.set(product.category, next);
+  product.code = `${categoryCodes.get(product.category)}-${next}`;
+});
+
 const cart = new Map();
 const $ = id => document.getElementById(id);
 const money = cents => (cents / 100).toFixed(2);
@@ -115,14 +129,13 @@ const money = cents => (cents / 100).toFixed(2);
 let saving = false;
 let activeCategory = "All";
 let lastProductId = null;
+let selectedIndex = 0;
+let visibleProducts = [];
 
-const categories = [
-  "All",
-  ...new Set(products.map(p => p.category))
-];
+const categories = ["All", ...categoryNames];
 
 function productCode(product) {
-  return product.id.slice(1).slice(-2);
+  return product.code;
 }
 
 function productName(product) {
@@ -149,18 +162,24 @@ function focusSearch(clear = false) {
   if (clear) {
     input.value = "";
     activeCategory = "All";
+    selectedIndex = 0;
     renderCategories();
     renderProducts();
   }
 
   input.focus();
-  input.select();
+  if (!clear) input.select();
 }
 
 function addProduct(product, quantity = 1) {
-  if (saving || !product || !Number.isSafeInteger(quantity) ||
-      quantity < 1 || quantity > 999) {
-    return;
+  if (
+    saving ||
+    !product ||
+    !Number.isSafeInteger(quantity) ||
+    quantity < 1 ||
+    quantity > 999
+  ) {
+    return false;
   }
 
   const existing = cart.get(product.id);
@@ -168,7 +187,7 @@ function addProduct(product, quantity = 1) {
 
   if (newQuantity > 999) {
     showMessage("Maximum quantity is 999 per item.");
-    return;
+    return false;
   }
 
   cart.set(product.id, {
@@ -178,13 +197,51 @@ function addProduct(product, quantity = 1) {
 
   lastProductId = product.id;
   renderCart();
-  showMessage(
-    `Added ${productName(product)} x${quantity}`
+  showMessage(`Added ${productName(product)} x${quantity}`);
+  return true;
+}
+
+function parseSearch(raw) {
+  const text = raw.trim();
+
+  const match = text.match(
+    /^(\d{1,2})\s*-\s*(\d{0,2})(?:\s*[*xX]\s*(\d{1,3}))?$/
   );
+
+  if (!match) {
+    return {
+      text,
+      quantity: 1,
+      code: null,
+      category: null,
+      item: null
+    };
+  }
+
+  return {
+    text,
+    quantity: match[3] ? Number(match[3]) : 1,
+    code: match[2]
+      ? `${Number(match[1])}-${Number(match[2])}`
+      : null,
+    category: Number(match[1]),
+    item: match[2] ? Number(match[2]) : null
+  };
 }
 
 function findProducts(query) {
-  const term = query.trim().toLowerCase();
+  const parsed = parseSearch(query);
+  const term = parsed.text.toLowerCase();
+
+  if (parsed.category !== null) {
+    return products.filter(product =>
+      categoryCodes.get(product.category) === parsed.category &&
+      (
+        parsed.item === null ||
+        Number(product.code.split("-")[1]) === parsed.item
+      )
+    );
+  }
 
   return products.filter(product => {
     const matchesCategory =
@@ -194,7 +251,7 @@ function findProducts(query) {
     const searchable = [
       productName(product),
       product.category,
-      productCode(product),
+      product.code,
       product.id
     ].join(" ").toLowerCase();
 
@@ -212,11 +269,17 @@ function renderCategories() {
   categories.forEach(category => {
     const button = document.createElement("button");
     button.type = "button";
+
     button.className =
       "category" +
       (category === activeCategory ? " active" : "");
 
-    button.textContent = category;
+    const number = categoryCodes.get(category);
+
+    button.textContent = number
+      ? `${number} - ${category}`
+      : "All";
+
     button.setAttribute(
       "aria-pressed",
       String(category === activeCategory)
@@ -224,12 +287,44 @@ function renderCategories() {
 
     button.onclick = () => {
       activeCategory = category;
+      $("product-search").value = "";
+      selectedIndex = 0;
       renderCategories();
       renderProducts();
-      focusSearch();
+      $("product-search").focus();
     };
 
     container.appendChild(button);
+  });
+}
+
+function updateSelection() {
+  const buttons = $("products").querySelectorAll("button.product");
+
+  buttons.forEach((button, index) => {
+    const selected = index === selectedIndex;
+
+    button.style.outline = selected
+      ? "3px solid #22c55e"
+      : "";
+
+    button.style.outlineOffset = selected
+      ? "-3px"
+      : "";
+
+    button.style.backgroundColor = selected
+      ? "rgba(34, 197, 94, 0.20)"
+      : "";
+
+    button.setAttribute(
+      "aria-selected",
+      String(selected)
+    );
+  });
+
+  buttons[selectedIndex]?.scrollIntoView({
+    block: "nearest",
+    inline: "nearest"
   });
 }
 
@@ -239,10 +334,15 @@ function renderProducts() {
 
   container.replaceChildren();
 
-  const query = $("product-search")?.value || "";
-  const filtered = findProducts(query);
+  visibleProducts = findProducts(
+    $("product-search")?.value || ""
+  );
 
-  filtered.forEach(product => {
+  if (selectedIndex >= visibleProducts.length) {
+    selectedIndex = 0;
+  }
+
+  visibleProducts.forEach(product => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "product";
@@ -259,18 +359,21 @@ function renderProducts() {
     button.append(name, price);
 
     button.onclick = () => {
-      addProduct(product);
-      focusSearch(true);
+      if (addProduct(product)) {
+        focusSearch(true);
+      }
     };
 
     container.appendChild(button);
   });
 
-  if (!filtered.length) {
+  if (!visibleProducts.length) {
     const message = document.createElement("p");
     message.textContent = "No matching products found.";
     container.appendChild(message);
   }
+
+  updateSelection();
 }
 
 function renderCart() {
@@ -281,6 +384,7 @@ function renderCart() {
     row.className = "cart-row";
 
     const label = document.createElement("span");
+
     label.textContent =
       `${productCode(item)} ${productName(item)} x${item.qty}` +
       ` - Rs. ${money(item.price * item.qty)}`;
@@ -289,6 +393,7 @@ function renderCart() {
     remove.type = "button";
     remove.className = "secondary";
     remove.textContent = "−";
+
     remove.setAttribute(
       "aria-label",
       `Remove one ${productName(item)}`
@@ -316,6 +421,7 @@ function changeQuantity(id, change) {
 
   if (quantity <= 0) {
     cart.delete(id);
+
     if (lastProductId === id) {
       lastProductId = [...cart.keys()].at(-1) || null;
     }
@@ -327,11 +433,13 @@ function changeQuantity(id, change) {
 }
 
 function updateChange() {
-  const cash = Number($("cash").value);
-  const cents = Math.round(cash * 100);
+  const cashText = $("cash").value.trim();
+  const cents = Math.round(Number(cashText) * 100);
 
   $("change").textContent =
-    Number.isSafeInteger(cents) && cents >= totalCents()
+    cashText &&
+    Number.isSafeInteger(cents) &&
+    cents >= totalCents()
       ? money(cents - totalCents())
       : "0.00";
 }
@@ -352,66 +460,44 @@ function processProductEntry() {
   const raw = input.value.trim();
 
   if (!raw) {
-    showMessage("Enter a product code or name.");
+    showMessage(
+      "Type a category code (e.g. 2-) or product name."
+    );
     return;
   }
 
-  // Examples: 02, 2, 02*3, 02x3
-  const codeMatch = raw.match(
-    /^(\d{1,2})(?:\s*[*xX]\s*(\d{1,3}))?$/
-  );
+  const parsed = parseSearch(raw);
 
-  let product;
-  let quantity = 1;
-
-  if (codeMatch) {
-    const code = codeMatch[1].padStart(2, "0");
-    quantity = codeMatch[2]
-      ? Number(codeMatch[2])
-      : 1;
-
-    product = products.find(
-      p => productCode(p) === code
-    );
-
-    if (!product) {
-      showMessage(`Product code ${code} not found.`);
-      input.select();
-      return;
-    }
-  } else {
-    // Name search ignores category so every item is accessible.
-    const term = raw.toLowerCase();
-
-    product = products.find(
-      p => productName(p).toLowerCase() === term
-    ) || products.find(
-      p => productName(p).toLowerCase().includes(term)
-    );
-
-    if (!product) {
-      showMessage("No product found. Check the name.");
-      input.select();
-      return;
-    }
-  }
-
-  if (!Number.isSafeInteger(quantity) ||
-      quantity < 1 || quantity > 999) {
+  if (parsed.quantity < 1 || parsed.quantity > 999) {
     showMessage("Enter a quantity from 1 to 999.");
     return;
   }
 
-  addProduct(product, quantity);
-  focusSearch(true);
+  let product = visibleProducts[selectedIndex];
+
+  if (parsed.code) {
+    product = products.find(
+      p => p.code === parsed.code
+    );
+  }
+
+  if (!product) {
+    showMessage(
+      "No matching product. Check the code or name."
+    );
+    return;
+  }
+
+  if (addProduct(product, parsed.quantity)) {
+    focusSearch(true);
+  }
 }
 
 async function checkout() {
   if (saving || !cart.size) return;
 
   const cashText = $("cash").value.trim();
-  const cash = Number(cashText);
-  const received = Math.round(cash * 100);
+  const received = Math.round(Number(cashText) * 100);
   const total = totalCents();
 
   if (
@@ -489,19 +575,34 @@ async function exportBackup() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Product entry by keyboard.
+// Live category / name search.
 $("product-search").addEventListener("input", () => {
-  // Searching by name or code always shows all categories.
   if (activeCategory !== "All") {
     activeCategory = "All";
     renderCategories();
   }
 
+  selectedIndex = 0;
   renderProducts();
 });
 
 $("product-search").addEventListener("keydown", event => {
-  if (event.key === "Enter") {
+  if (
+    event.key === "ArrowDown" ||
+    event.key === "ArrowUp"
+  ) {
+    event.preventDefault();
+
+    if (visibleProducts.length) {
+      selectedIndex = (
+        selectedIndex +
+        (event.key === "ArrowDown" ? 1 : -1) +
+        visibleProducts.length
+      ) % visibleProducts.length;
+
+      updateSelection();
+    }
+  } else if (event.key === "Enter") {
     event.preventDefault();
     processProductEntry();
   }
@@ -522,8 +623,13 @@ document.addEventListener("keydown", event => {
   const key = event.key;
   const target = event.target;
 
-  if (event.ctrlKey || event.altKey || event.metaKey ||
-      event.isComposing || event.repeat) {
+  if (
+    event.ctrlKey ||
+    event.altKey ||
+    event.metaKey ||
+    event.isComposing ||
+    event.repeat
+  ) {
     return;
   }
 
@@ -559,7 +665,6 @@ document.addEventListener("keydown", event => {
       target.isContentEditable
     );
 
-  // Do not interfere with entering cash or registration details.
   if (typing) return;
 
   if (key === "+" || key === "=") {
@@ -578,27 +683,29 @@ document.addEventListener("keydown", event => {
     return;
   }
 
-  // Automatically focus search when typing product codes/names.
   if (
     key.length === 1 &&
     /^[a-zA-Z0-9]$/.test(key) &&
     !event.shiftKey
   ) {
     event.preventDefault();
-    focusSearch();
 
     const input = $("product-search");
+    input.focus();
     input.value += key;
+
     input.dispatchEvent(new Event("input"));
   }
 });
 
+// Existing buttons and status updates.
 $("checkout").addEventListener("click", checkout);
 $("export").addEventListener("click", exportBackup);
 
 window.addEventListener("online", updateStatus);
 window.addEventListener("offline", updateStatus);
 
+// Start POS.
 renderCategories();
 renderProducts();
 renderCart();
@@ -614,5 +721,4 @@ if ("serviceWorker" in navigator) {
     .catch(console.error);
 }
 
-// Start ready for cashier keyboard input.
 focusSearch();
