@@ -21,99 +21,114 @@
 // ============================================
 
 const products = [
-  { id:"M001", category:"Dosa", name:"Plain Dosa", price:16000 },
-  { id:"M002", category:"Dosa", name:"Masala Dosa", price:46000 },
-  { id:"M003", category:"Dosa", name:"Paper Dosa", price:33000 },
-  { id:"M004", category:"Dosa", name:"Ghee Dosa", price:39000 },
-  { id:"M005", category:"Dosa", name:"Onion Dosa", price:33000 },
-  { id:"M006", category:"Dosa", name:"Cheese Dosa", price:62000 },
-  { id:"M007", category:"Dosa", name:"Ghee Masala Dosa", price:55000 },
+  // DOSA
+  { id:"M001", category:"Dosa", name:"Plain Dosa", price:12000 },
+  { id:"M002", category:"Dosa", name:"Masala Dosa", price:35000 },
+  { id:"M003", category:"Dosa", name:"Paper Dosa", price:25000 },
+  { id:"M004", category:"Dosa", name:"Ghee Dosa", price:30000 },
+  { id:"M005", category:"Dosa", name:"Onion Dosa", price:25000 },
+  { id:"M006", category:"Dosa", name:"Cheese Dosa", price:48000 },
+  { id:"M007", category:"Dosa", name:"Ghee Masala Dosa", price:42000 },
 
-  { id:"M008", category:"Wada", name:"Ulundu Vadai", price:16000 },
-  { id:"M009", category:"Wada", name:"Ala Bonda", price:16000 },
-  { id:"M010", category:"Wada", name:"Keera Wada", price:16000 },
-  { id:"M011", category:"Wada", name:"Masala Vadai", price:10000 },
-  { id:"M012", category:"Wada", name:"Veg Roti", price:13000 },
-  { id:"M013", category:"Wada", name:"Veg Samosa", price:13000 },
-  { id:"M014", category:"Wada", name:"Bajji - Maalu Miris", price:16000 },
+  // WADA
+  { id:"M008", category:"Wada", name:"Ulundu Vadai", price:12000 },
+  { id:"M009", category:"Wada", name:"Ala Bonda", price:12000 },
+  { id:"M010", category:"Wada", name:"Keera Wada", price:12000 },
+  { id:"M011", category:"Wada", name:"Masala Vadai", price:8000 },
+  { id:"M012", category:"Wada", name:"Veg Roti", price:10000 },
+  { id:"M013", category:"Wada", name:"Veg Samosa", price:10000 },
+  { id:"M014", category:"Wada", name:"Bajji - Maalu Miris", price:12000 },
 
-  { id:"M015", category:"Parota", name:"Parota", price:10000 },
-  { id:"M016", category:"Parota", name:"Ala Parata", price:20000 },
-  { id:"M017", category:"Parota", name:"Cheese Parota", price:33000 },
-  { id:"M018", category:"Parota", name:"Ghee Parota", price:16000 },
+  // PAROTA
+  { id:"M015", category:"Parota", name:"Parota", price:8000 },
+  { id:"M016", category:"Parota", name:"Ala Parata", price:15000 },
+  { id:"M017", category:"Parota", name:"Cheese Parota", price:25000 },
+  { id:"M018", category:"Parota", name:"Ghee Parota", price:12000 },
 
-  { id:"M019", category:"Special Items", name:"Chilli Parata", price:20000 },
-  { id:"M020", category:"Special Items", name:"Macaroni", price:33000 },
-  { id:"M021", category:"Special Items", name:"Noodles", price:33000 },
-  { id:"M022", category:"Special Items", name:"Veg Kottu", price:33000 },
+  // OTHER ITEMS
+  { id:"M019", category:"Other Items", name:"Chilli Parata", price:15000 },
+  { id:"M020", category:"Other Items", name:"Macaroni", price:25000 },
+  { id:"M021", category:"Other Items", name:"Noodles", price:25000 },
+  { id:"M022", category:"Other Items", name:"Veg Kottu", price:25000 },
 
-  { id:"M023", category:"Rice", name:"Veg Biriyani", price:46000 },
-  { id:"M024", category:"Rice", name:"Rice and Curry", price:49000 },
+  // RICE
+  { id:"M023", category:"Rice", name:"Veg Biriyani", price:35000 },
+  { id:"M024", category:"Rice", name:"Rice and Curry", price:38000 },
 
-  { id:"M025", category:"Chapathi", name:"Chapathi", price:33000 },
-  { id:"M026", category:"Poori", name:"Poori", price:33000 },
-  { id:"M027", category:"Idli", name:"Idli", price:34000 },
-  { id:"M028", category:"Rulan Pittu", name:"Rulan Pittu", price:33000 },
+  // SPECIAL ITEMS
+  { id:"M025", category:"Special Items", name:"Chapathi", price:25000 },
+  { id:"M026", category:"Special Items", name:"Poori", price:25000 },
+  { id:"M027", category:"Special Items", name:"Idli", price:26000 },
+  { id:"M028", category:"Special Items", name:"Rulan Pittu", price:25000 },
+  { id:"M029", category:"Special Items", name:"Strink Hopper Red", price:22000 },
+  { id:"M030", category:"Special Items", name:"Strink Hopper White", price:20000 },
 
-  { id:"M029", category:"String Hopper", name:"String Hopper Red", price:29000 },
-  { id:"M030", category:"String Hopper", name:"String Hopper White", price:26000 },
+  // SWEET
+  { id:"M031", category:"Sweet", name:"Laddu", price:13000 },
+  { id:"M032", category:"Sweet", name:"Pani Walalu", price:13000 },
+  { id:"M033", category:"Sweet", name:"Son Papdi", price:13000 },
+  { id:"M034", category:"Sweet", name:"Mysore Pak", price:13000 },
+  { id:"M035", category:"Sweet", name:"Barfi", price:13000 },
+  { id:"M036", category:"Sweet", name:"Gulab Jamun", price:20000 },
 
-  { id:"M031", category:"Sweet", name:"Laddu", price:17000 },
-  { id:"M032", category:"Sweet", name:"Pani Walalu", price:17000 },
-  { id:"M033", category:"Sweet", name:"Son Papdi", price:17000 },
-  { id:"M034", category:"Sweet", name:"Mysore Pak", price:17000 },
-  { id:"M035", category:"Sweet", name:"Barfi", price:17000 },
-  { id:"M036", category:"Sweet", name:"Gulab Jamun", price:26000 },
+  // TEA
+  { id:"M037", category:"Tea", name:"Tea (Milk Powder)", price:12000 },
+  { id:"M038", category:"Tea", name:"Tea (Fresh Milk)", price:15000 },
+  { id:"M039", category:"Tea", name:"Plain Tea", price:5000 },
+  { id:"M040", category:"Tea", name:"Kiri Kopi", price:15000 },
+  { id:"M041", category:"Tea", name:"Nestomalt", price:13000 },
+  { id:"M042", category:"Tea", name:"Masala Tea", price:18000 },
 
-  { id:"M037", category:"Tea", name:"Tea (Milk Powder)", price:16000 },
-  { id:"M038", category:"Tea", name:"Tea (Fresh Milk)", price:20000 },
-  { id:"M039", category:"Tea", name:"Plain Tea", price:7000 },
-  { id:"M040", category:"Tea", name:"Kiri Kopi", price:20000 },
-  { id:"M041", category:"Tea", name:"Nestomalt", price:17000 },
-  { id:"M042", category:"Tea", name:"Masala Tea", price:23000 },
+  // EXTRA CURRY
+  { id:"M043", category:"Extra Curry", name:"Kadala Curry", price:12000 },
+  { id:"M044", category:"Extra Curry", name:"Potato Curry", price:12000 },
+  { id:"M045", category:"Extra Curry", name:"SoyaMeat Curry", price:10000 },
+  { id:"M046", category:"Extra Curry", name:"Mushroom Curry", price:15000 },
+  { id:"M047", category:"Extra Curry", name:"Paneer Curry", price:20000 },
 
-  { id:"M043", category:"Extra Curry", name:"Kadala", price:16000 },
-  { id:"M044", category:"Extra Curry", name:"Potato", price:16000 },
-  { id:"M045", category:"Extra Curry", name:"Soya Meat", price:13000 },
-  { id:"M046", category:"Extra Curry", name:"Mushroom", price:20000 },
-  { id:"M047", category:"Extra Curry", name:"Paneer", price:26000 },
+  // JUICE
+  { id:"M048", category:"Juice", name:"Avocado Juice", price:25000 },
+  { id:"M049", category:"Juice", name:"Watermelon Juice", price:18000 },
+  { id:"M050", category:"Juice", name:"Mango Juice", price:26000 },
+  { id:"M051", category:"Juice", name:"Divul Juice", price:25000 },
+  { id:"M052", category:"Juice", name:"Pineapple Juice", price:28000 },
+  { id:"M053", category:"Juice", name:"Lime Juice", price:15000 },
 
-  { id:"M048", category:"Juice", name:"Avocado", price:33000 },
-  { id:"M049", category:"Juice", name:"Watermelon", price:23000 },
-  { id:"M050", category:"Juice", name:"Mango", price:34000 },
-  { id:"M051", category:"Juice", name:"Divul", price:33000 },
-  { id:"M052", category:"Juice", name:"Pineapple", price:36000 },
-  { id:"M053", category:"Juice", name:"Lime", price:20000 },
-
+  // SOFT DRINKS - 250ml
   { id:"M054", category:"Soft Drinks", name:"Pepsi", size:"250ml", price:12000 },
   { id:"M055", category:"Soft Drinks", name:"Mirinda", size:"250ml", price:12000 },
   { id:"M056", category:"Soft Drinks", name:"7Up", size:"250ml", price:12000 },
   { id:"M057", category:"Soft Drinks", name:"Mountain Dew", size:"250ml", price:12000 },
   { id:"M058", category:"Soft Drinks", name:"String", size:"250ml", price:12000 },
 
+  // SOFT DRINKS - 400ml
   { id:"M059", category:"Soft Drinks", name:"Pepsi", size:"400ml", price:20000 },
   { id:"M060", category:"Soft Drinks", name:"Mirinda", size:"400ml", price:20000 },
   { id:"M061", category:"Soft Drinks", name:"7Up", size:"400ml", price:20000 },
   { id:"M062", category:"Soft Drinks", name:"Mountain Dew", size:"400ml", price:20000 },
   { id:"M063", category:"Soft Drinks", name:"String", size:"400ml", price:20000 },
 
+  // SOFT DRINKS - 1Ltr
   { id:"M064", category:"Soft Drinks", name:"Pepsi", size:"1Ltr", price:27000 },
   { id:"M065", category:"Soft Drinks", name:"Mirinda", size:"1Ltr", price:27000 },
   { id:"M066", category:"Soft Drinks", name:"7Up", size:"1Ltr", price:27000 },
   { id:"M067", category:"Soft Drinks", name:"Mountain Dew", size:"1Ltr", price:27000 },
   { id:"M068", category:"Soft Drinks", name:"String", size:"1Ltr", price:27000 },
 
+  // SOFT DRINKS - 1.5Ltr
   { id:"M069", category:"Soft Drinks", name:"Pepsi", size:"1.5Ltr", price:42000 },
   { id:"M070", category:"Soft Drinks", name:"Mirinda", size:"1.5Ltr", price:42000 },
   { id:"M071", category:"Soft Drinks", name:"7Up", size:"1.5Ltr", price:42000 },
   { id:"M072", category:"Soft Drinks", name:"Mountain Dew", size:"1.5Ltr", price:42000 },
   { id:"M073", category:"Soft Drinks", name:"String", size:"1.5Ltr", price:42000 },
 
+  // WATER
   { id:"M074", category:"Water", name:"Water Bottle", size:"500ml", price:8000 },
   { id:"M075", category:"Water", name:"Water Bottle", size:"1Ltr", price:12000 },
   { id:"M076", category:"Water", name:"Water Bottle", size:"1.5Ltr", price:15000 }
 ];
 
+  
 // ============================================
 // 2. CATEGORY CODES
 // ============================================
@@ -122,13 +137,9 @@ const categoryNames = [
   "Wada",
   "Dosa",
   "Parota",
-  "Special Items",
+  "Other Items",
   "Rice",
-  "Chapathi",
-  "Poori",
-  "Idli",
-  "Rulan Pittu",
-  "String Hopper",
+  "Special Items",
   "Sweet",
   "Tea",
   "Extra Curry",
