@@ -29,21 +29,62 @@
 
     main {
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
       gap: 20px;
       padding: 20px;
+      align-items: start;
     }
 
     section {
       background: white;
       padding: 20px;
       border-radius: 12px;
+      min-width: 0;
+    }
+
+    h2 { margin-top: 0; }
+
+    .menu-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    #product-search {
+      width: 100%;
+      padding: 13px;
+      margin: 0;
+      font-size: 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+    }
+
+    .categories {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 3px 0 10px;
+      scrollbar-width: thin;
+    }
+
+    .category {
+      background: #e2e8f0;
+      color: #172033;
+      white-space: nowrap;
+      padding: 10px 14px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .category.active {
+      background: #166534;
+      color: white;
     }
 
     .products {
       display: grid;
-      grid-template-columns:
-        repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
       gap: 12px;
     }
 
@@ -63,6 +104,24 @@
     .product {
       background: #dcfce7;
       text-align: left;
+      min-height: 90px;
+      border: 1px solid #bbf7d0;
+    }
+
+    .product:hover {
+      background: #bbf7d0;
+    }
+
+    .product-name {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .product-price {
+      display: block;
+      color: #166534;
+      font-weight: bold;
     }
 
     .primary {
@@ -135,10 +194,25 @@
       main {
         grid-template-columns: 1fr;
         padding: 10px;
+        gap: 10px;
       }
 
       section {
         padding: 15px;
+      }
+
+      .products {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .product {
+        padding: 12px;
+        min-height: 82px;
+      }
+
+      header {
+        padding: 14px;
       }
     }
   </style>
@@ -159,6 +233,24 @@
   <main>
     <section>
       <h2>Menu</h2>
+
+      <!-- NEW: PRODUCT SEARCH AND CATEGORIES -->
+      <div class="menu-toolbar">
+        <input
+          id="product-search"
+          type="search"
+          placeholder="Search food or drinks..."
+          aria-label="Search products"
+          autocomplete="off"
+        >
+
+        <div
+          id="categories"
+          class="categories"
+          aria-label="Product categories"
+        ></div>
+      </div>
+
       <div id="products" class="products"></div>
     </section>
 
