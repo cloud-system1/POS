@@ -931,6 +931,8 @@
         
         loadAdminOutlets();
 
+        loadEditableOutlets();
+
 
       } catch {
         $("loading").innerHTML =
@@ -1385,6 +1387,129 @@
     );
 
 
+    // ==========================================
+    // ADMIN: EDIT OUTLET SELECTOR
+    // ==========================================
+
+    let editableOutlets = [];
+
+    function clearEditOutletFields() {
+      $("editOutletCode").value = "";
+      $("editOutletName").value = "";
+      $("editOutletAddress").value = "";
+      $("editOutletPhone").value = "";
+      $("editOutletEmail").value = "";
+      $("editOutletManager").value = "";
+      $("updateOutletBtn").disabled = true;
+    }
+
+    async function loadEditableOutlets() {
+      const select = $("editOutletSelect");
+
+      select.disabled = true;
+      select.replaceChildren(
+        new Option("Loading outlets...", "")
+      );
+
+      clearEditOutletFields();
+
+      try {
+        const response = await fetch(
+          "/api/admin/outlets",
+          {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Unable to load outlets (" +
+            response.status + ")"
+          );
+        }
+
+        const data = await response.json();
+
+        if (!data.success ||
+            !Array.isArray(data.outlets)) {
+          throw new Error("Invalid outlet response");
+        }
+
+        editableOutlets = data.outlets;
+
+        select.replaceChildren(
+          new Option("Select an outlet...", "")
+        );
+
+        editableOutlets.forEach(outlet => {
+          select.add(
+            new Option(
+              outlet.outlet_name +
+              " (" + outlet.outlet_code + ")",
+              outlet.outlet_id
+            )
+          );
+        });
+
+        select.disabled = false;
+
+      } catch (error) {
+        editableOutlets = [];
+
+        select.replaceChildren(
+          new Option("Unable to load outlets", "")
+        );
+
+        $("editOutletMessage").textContent =
+          error.message;
+
+        $("editOutletMessage").className =
+          "message error";
+      }
+    }
+
+    $("editOutletSelect").addEventListener(
+      "change",
+      function() {
+        clearEditOutletFields();
+
+        const outlet = editableOutlets.find(
+          item => item.outlet_id === this.value
+        );
+
+        if (!outlet) {
+          return;
+        }
+
+        $("editOutletCode").value =
+          outlet.outlet_code;
+
+        $("editOutletName").value =
+          outlet.outlet_name;
+
+        $("editOutletAddress").value =
+          outlet.address || "";
+
+        $("editOutletPhone").value =
+          outlet.phone || "";
+
+        $("editOutletEmail").value =
+          outlet.email || "";
+
+        $("editOutletManager").value =
+          outlet.manager_name || "";
+
+        $("editOutletMessage").textContent = "";
+        $("editOutletMessage").className =
+          "message hidden";
+
+        $("updateOutletBtn").disabled = false;
+      }
+    );
+
+    
     initializeAdmin();
   </script>
 </body>
