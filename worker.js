@@ -1059,6 +1059,64 @@ async function createCashier(request, env) {
   }
 }
 
+
+ // ==========================================
+ // ADMIN: OUTLET SALES SUMMARY
+ // ==========================================
+
+ async function getOutletSalesSummary(request, env) {
+   if (!env.DB) {
+     return json({
+       error: "Database unavailable"
+     }, 503);
+   }
+
+   let admin;
+
+   try {
+     admin = await requireAdmin(request, env);
+   } catch {
+     return json({
+       error: "Authentication unavailable"
+     }, 503);
+   }
+
+   if (admin.error) {
+     return admin.error;
+   }
+
+   try {
+     const result = await env.DB.prepare(`
+       SELECT
+         o.outlet_id,
+         o.outlet_code,
+         o.outlet_name,
+         COUNT(s.sale_id) AS total_sales,
+         COALESCE(SUM(s.total_cents), 0)
+           AS total_revenue_cents
+       FROM outlets o
+       LEFT JOIN sales s
+         ON s.outlet_id = o.outlet_id
+       GROUP BY
+         o.outlet_id,
+         o.outlet_code,
+         o.outlet_name
+       ORDER BY o.outlet_code
+     `).all();
+
+     return json({
+       success: true,
+       outlets: result.results || []
+     });
+
+   } catch {
+     return json({
+       error: "Unable to load outlet sales"
+     }, 503);
+   }
+ }
+
+
 // ==========================================
 // CLOUDFLARE WORKER ROUTES
 // ==========================================
@@ -1125,6 +1183,19 @@ export default {
 
       return createCashier(request, env);
     }
+
+    
+    // Administrator-only outlet sales reporting
+    if (url.pathname === "/api/admin/sales-summary") {
+      if (request.method !== "GET") {
+        return json({
+          error: "Method not allowed"
+        }, 405);
+      }
+
+      return getOutletSalesSummary(request, env);
+    }
+
 
     // First Administrator setup
     if (url.pathname === "/api/auth/setup") {
