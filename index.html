@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8fafc">
-  <title>Veg Takeaway POS</title>
+  <meta name="theme-color" content="#020617">
+  <title>Premium POS | Cashier</title>
   <link rel="manifest" href="./manifest.webmanifest">
 
   <style>
@@ -677,21 +677,25 @@
     }
   </style>
 
+
   <script src="./db.js" defer></script>
   <script src="./app.js" defer></script>
   <script src="./sync.js" defer></script>
 </head>
 
 <body>
-  <div class="app-shell">
+  <div id="premium-auth-overlay" role="status" aria-live="polite">
+    <div class="auth-card"><h2>Premium POS</h2><p id="premium-auth-message">Verifying your secure session...</p><a href="./login.html" id="premium-login-link" hidden>Go to Login</a></div>
+  </div>
+  <div class="app-shell" id="premium-app" inert aria-hidden="true">
 
     <!-- CASHIER SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="brand-icon">V</div>
+        <div class="brand-icon">P</div>
         <div class="brand-copy">
-          <div class="brand-name">Veg Takeaway</div>
-          <div class="brand-subtitle">RESTAURANT POS</div>
+          <div class="brand-name">Premium <span style="color:#60a5fa">POS</span></div>
+          <div class="brand-subtitle">Powered by GTG Sollutions</div>
         </div>
       </div>
 
@@ -722,7 +726,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        Fast cashier mode
+        Premium POS • Cashier Terminal
       </div>
     </aside>
 
@@ -730,12 +734,14 @@
     <div class="workspace">
       <header>
         <div class="header-title">
-          Point of Sale (POS)
+          Premium POS <small style="font-size:12px;font-weight:normal;color:#94a3b8">/ Cashier</small>
         </div>
 
-        <span id="status" class="status">
-          Checking connection...
-        </span>
+        <div class="premium-header-right">
+          <span id="status" class="status">Checking connection...</span>
+          <span id="premium-user" class="premium-user" aria-live="polite">Checking session...</span>
+          <button id="premium-logout" class="premium-logout" type="button" disabled>Logout</button>
+        </div>
       </header>
 
       <div class="page-content">
@@ -1199,7 +1205,7 @@
 <dialog id="sh-receipt">
 
   <div class="sh-receipt-header">
-    <h2>VEG TAKEAWAY</h2>
+    <h2>PREMIUM POS</h2>
     <div>Sales Receipt</div>
   </div>
 
@@ -1674,7 +1680,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const doc = printWindow.document;
 
-    doc.title = "Veg Takeaway Receipt";
+    doc.title = "Premium POS Receipt";
 
     const style = doc.createElement("style");
 
@@ -1707,7 +1713,7 @@ document.addEventListener("DOMContentLoaded", () => {
     doc.head.appendChild(style);
 
     const title = doc.createElement("h2");
-    title.textContent = "VEG TAKEAWAY";
+    title.textContent = "PREMIUM POS";
 
     doc.body.appendChild(title);
 
@@ -1725,6 +1731,142 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <!-- END SALES HISTORY MODULE -->
+  <!-- PREMIUM POS CASHIER THEME -->
+  <style>
+    :root {
+      --bg:#020617; --white:#0f172a; --surface:#0f172a;
+      --text:#f8fafc; --muted:#94a3b8; --line:#334155;
+      --accent:#2563eb; --accent-dark:#60a5fa;
+      --sidebar:#09090b; --success:#22c55e; --danger:#ef4444;
+    }
+    body { background:#020617; color:#f8fafc; }
+    .app-shell { background:#020617; }
+    .sidebar { background:#09090b; border-color:#334155; }
+    .sidebar-brand,.sidebar-footer { border-color:#334155; }
+    .brand-icon { background:linear-gradient(135deg,#3b82f6,#1d4ed8); }
+    .brand-name { color:#fff; }
+    .nav-link { color:#cbd5e1; }
+    .nav-link.active { background:#1d4ed8; color:#fff; border-color:#3b82f6; }
+    .nav-link:hover { background:#1e293b; color:#fff; }
+    header { background:#09090b; border-color:#334155; color:#fff; }
+    .premium-header-right { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+    .premium-user { padding:9px 12px;background:#172554;border:1px solid #1d4ed8;border-radius:9px;color:#bfdbfe;font-size:12px; }
+    .premium-logout { padding:9px 13px;background:#450a0a;color:#fecaca;border:1px solid #991b1b; }
+    .premium-logout:hover { background:#7f1d1d; }
+    .status { background:#052e16;color:#86efac;border-color:#166534; }
+    .page-content { background:#020617; }
+    .breadcrumb,.keyboard-help,.sidebar-label,.sidebar-footer { color:#94a3b8; }
+    section,.sh-card { background:#0f172a;border-color:#334155; }
+    .section-header,.total,.sync-summary { border-color:#334155; }
+    .primary,.category.active,#sh-refresh { background:#2563eb;color:#fff; }
+    .primary:hover { background:#1d4ed8; }
+    .secondary,.category { background:#1e293b;color:#e2e8f0;border-color:#334155; }
+    .secondary:hover { background:#334155; }
+    .product { background:#0f172a;color:#f8fafc;border-color:#334155; }
+    .product:hover { border-color:#3b82f6;box-shadow:0 4px 14px rgba(37,99,235,.18); }
+    .product-price,.total #total,.dropdown-price,.dropdown-code,#pending { color:#60a5fa; }
+    .cart-row { border-color:#334155; }
+    label,#message { color:#e2e8f0; }
+    input,#product-search { background:#0f172a;color:#f8fafc;border-color:#475569; }
+    #product-search:focus { outline:2px solid #2563eb; }
+    .product-dropdown { background:#0f172a;border-color:#334155; }
+    .dropdown-item { background:#0f172a;color:#f8fafc; }
+    .dropdown-item:hover,.dropdown-item.selected { background:#1e3a8a; }
+    .sync-panel { background:#0b1220;border-color:#334155; }
+    #device-status { color:#94a3b8; }
+    #sales-history-page { background:#020617;color:#f8fafc; }
+    .sh-subtitle,.sh-card-label { color:#94a3b8; }
+    .sh-card-value { color:#60a5fa; }
+    .sh-filters input,.sh-filters select { background:#0f172a;color:#f8fafc;border-color:#334155; }
+    .sh-table-wrapper { border-color:#334155; }
+    .sh-table th { background:#1e293b;color:#cbd5e1; }
+    .sh-table td { border-color:#334155; }
+    .sh-table tbody tr:hover { background:#172554; }
+    .sh-view { background:#1e3a8a;color:#bfdbfe;border-color:#2563eb; }
+    .sh-receipt-total { color:#2563eb; }
+    #premium-auth-overlay { position:fixed;inset:0;z-index:100000;background:#020617;color:#f8fafc;display:grid;place-items:center;padding:20px;text-align:center; }
+    #premium-auth-overlay .auth-card { max-width:400px;padding:30px;border:1px solid #334155;border-radius:16px;background:#0f172a; }
+    #premium-auth-overlay a { color:#93c5fd; }
+    @media(max-width:750px) { .premium-header-right { width:100%;justify-content:space-between; } .premium-user { max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } }
+  </style>
+
+
+
+
+<!-- PREMIUM POS SESSION CHECK / LOGOUT -->
+<script>
+(() => {
+  const overlay = document.getElementById("premium-auth-overlay");
+  const app = document.getElementById("premium-app");
+  const message = document.getElementById("premium-auth-message");
+  const loginLink = document.getElementById("premium-login-link");
+  const userLabel = document.getElementById("premium-user");
+  const logoutButton = document.getElementById("premium-logout");
+  let verified = false;
+  function deny(text) {
+    verified = false;
+    app.inert = true;
+    app.setAttribute("aria-hidden", "true");
+    overlay.hidden = false;
+    message.textContent = text;
+    loginLink.hidden = false;
+    logoutButton.disabled = true;
+  }
+  async function checkSession() {
+    try {
+      const response = await fetch("/api/auth/me", {
+        method: "GET", credentials: "same-origin", cache: "no-store"
+      });
+      if (response.status === 401) {
+        window.location.replace("./login.html");
+        return;
+      }
+      if (!response.ok) throw new Error("Session service unavailable");
+      const data = await response.json();
+      if (!data.success || !data.user ||
+          !["admin", "cashier"].includes(data.user.role)) {
+        window.location.replace("./login.html");
+        return;
+      }
+      verified = true;
+      userLabel.textContent = data.user.fullName + " · " + data.user.role.toUpperCase();
+      logoutButton.disabled = false;
+      app.inert = false;
+      app.removeAttribute("aria-hidden");
+      overlay.hidden = true;
+    } catch (error) {
+      deny("Unable to verify your login. Connect to the internet and sign in again. Offline login will be added in a later step.");
+    }
+  }
+  logoutButton.addEventListener("click", async () => {
+    if (!verified) return;
+    logoutButton.disabled = true;
+    app.inert = true;
+    overlay.hidden = false;
+    message.textContent = "Signing out...";
+    loginLink.hidden = true;
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method:"POST", credentials:"same-origin", cache:"no-store"
+      });
+      if (!response.ok) throw new Error("Logout failed");
+      window.location.replace("./login.html");
+    } catch (error) {
+      deny("Could not confirm logout. Please reconnect and try again.");
+    }
+  });
+  window.addEventListener("pageshow", () => {
+    if (verified) {
+      app.inert = true;
+      overlay.hidden = false;
+      message.textContent = "Verifying your secure session...";
+      loginLink.hidden = true;
+      checkSession();
+    }
+  });
+  checkSession();
+})();
+</script>
 
 </body>
 </html>
