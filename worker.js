@@ -1064,6 +1064,53 @@ async function createCashier(request, env) {
  // ADMIN: OUTLET SALES SUMMARY
  // ==========================================
 
+ // ==========================================
+ // ADMIN: LIST ALL OUTLETS
+ // ==========================================
+
+ async function listAdminOutlets(request, env) {
+   if (!env.DB) {
+     return json({
+       error: "Database unavailable"
+     }, 503);
+   }
+
+   const admin = await requireAdmin(request, env);
+
+   if (admin.error) {
+     return admin.error;
+   }
+
+   try {
+     const result = await env.DB.prepare(`
+       SELECT
+         outlet_id,
+         outlet_code,
+         outlet_name,
+         address,
+         phone,
+         email,
+         manager_name,
+         is_active,
+         created_at,
+         updated_at
+       FROM outlets
+       ORDER BY outlet_code
+     `).all();
+
+     return json({
+       success: true,
+       outlets: result.results || []
+     });
+
+   } catch {
+     return json({
+       error: "Unable to retrieve outlets"
+     }, 500);
+   }
+ }
+
+
  async function getOutletSalesSummary(request, env) {
    if (!env.DB) {
      return json({
@@ -1195,6 +1242,18 @@ export default {
 
       return getOutletSalesSummary(request, env);
     }
+    
+    // Administrator-only outlet management
+    if (url.pathname === "/api/admin/outlets") {
+      if (request.method !== "GET") {
+        return json({
+          error: "Method not allowed"
+        }, 405);
+      }
+
+      return listAdminOutlets(request, env);
+    }
+
 
 
     // First Administrator setup
