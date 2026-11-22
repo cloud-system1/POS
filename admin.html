@@ -1,0 +1,805 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1220">
+  <title>Premium POS | Administrator Portal</title>
+
+  <style>
+    :root {
+      --bg: #080F1D;
+      --panel: #111D30;
+      --panel2: #17263D;
+      --blue: #2563EB;
+      --blue2: #60A5FA;
+      --white: #F8FAFC;
+      --muted: #94A3B8;
+      --line: #2A3B54;
+      --green: #22C55E;
+      --red: #F87171;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100vh;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .layout {
+      min-height: 100vh;
+      display: flex;
+    }
+
+    .sidebar {
+      width: 250px;
+      flex-shrink: 0;
+      padding: 25px 18px;
+      background: #0C1627;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 38px;
+    }
+
+    .brand-icon {
+      background: var(--blue);
+      border-radius: 13px;
+      padding: 12px;
+      font-size: 22px;
+    }
+
+    .brand h1 {
+      font-size: 19px;
+      margin: 0;
+    }
+
+    .brand small {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .nav-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      margin: 15px 12px;
+    }
+
+    .nav-item {
+      width: 100%;
+      display: block;
+      text-align: left;
+      padding: 13px 15px;
+      border-radius: 10px;
+      border: 0;
+      color: #CBD5E1;
+      background: transparent;
+      margin-bottom: 7px;
+    }
+
+    .nav-item.active {
+      background: #1D3763;
+      color: white;
+      font-weight: bold;
+    }
+
+    .nav-item:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding-top: 25px;
+    }
+
+    .powered {
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      padding: 30px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .topbar h2 {
+      margin: 0 0 7px;
+      font-size: 27px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .admin-tag {
+      background: #19375E;
+      color: #93C5FD;
+      border-radius: 25px;
+      padding: 9px 15px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 22px;
+    }
+
+    .stat .name {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stat .value {
+      font-size: 28px;
+      font-weight: bold;
+      margin-top: 12px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 19px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 25px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 13px;
+      color: #CBD5E1;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      background: #0B1628;
+      color: white;
+      border: 1px solid #34445E;
+      border-radius: 9px;
+      padding: 13px;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--blue2);
+    }
+
+    .field input:disabled,
+    .field select:disabled {
+      opacity: .6;
+    }
+
+    .actions {
+      margin-top: 25px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 13px 20px;
+      border-radius: 10px;
+      border: 0;
+      font-weight: bold;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #26354C;
+      color: white;
+    }
+
+    .btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 9px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .message.success {
+      background: #123B2B;
+      color: #86EFAC;
+      border: 1px solid #166534;
+    }
+
+    .message.error {
+      background: #401D2B;
+      color: #FDA4AF;
+      border: 1px solid #9F1239;
+    }
+
+    .outlet-box {
+      background: var(--panel2);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .outlet-box strong {
+      display: block;
+      margin-bottom: 7px;
+    }
+
+    .outlet-box small {
+      color: var(--muted);
+    }
+
+    .status {
+      color: #86EFAC;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .loading-screen {
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 25px;
+    }
+
+    @media (max-width: 850px) {
+      .layout { flex-direction: column; }
+
+      .sidebar {
+        width: 100%;
+        padding: 15px;
+      }
+
+      .brand { margin-bottom: 12px; }
+
+      .nav-label,
+      .sidebar-bottom .powered {
+        display: none;
+      }
+
+      .sidebar nav {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+      }
+
+      .nav-item {
+        width: auto;
+        white-space: nowrap;
+        margin: 0;
+      }
+
+      .sidebar-bottom {
+        margin-top: 10px;
+        padding-top: 0;
+      }
+
+      .main { padding: 18px; }
+
+      .topbar h2 { font-size: 22px; }
+
+      .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .stat { padding: 14px; }
+
+      .stat .value { font-size: 22px; }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 440px) {
+      .topbar { align-items: flex-start; }
+      .admin-tag { font-size: 10px; }
+      .stat .name { font-size: 11px; }
+      .stat .value { font-size: 19px; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="loading" class="loading-screen">
+    <div>
+      <h2 style="color:white">Premium POS</h2>
+      <p>Verifying Administrator access...</p>
+    </div>
+  </div>
+
+  <div id="app" class="layout hidden">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">◆</div>
+        <div>
+          <h1>Premium POS</h1>
+          <small>Smart Business Management System</small>
+        </div>
+      </div>
+
+      <div class="nav-label">MANAGEMENT</div>
+
+      <nav aria-label="Administrator navigation">
+        <button class="nav-item active" type="button">
+          ◉ Dashboard
+        </button>
+
+        <button class="nav-item" type="button" disabled
+                title="Coming in a later step">
+          ▣ Outlets
+        </button>
+
+        <button class="nav-item" type="button" disabled
+                title="Coming in a later step">
+          ▤ Terminals
+        </button>
+
+        <button class="nav-item" type="button" disabled
+                title="Coming in a later step">
+          ◈ Cash Settlements
+        </button>
+
+        <button class="nav-item" type="button" disabled
+                title="Coming in a later step">
+          ▥ Reports
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button id="logoutBtn"
+                class="nav-item"
+                type="button">
+          ↪ Logout
+        </button>
+
+        <div class="powered">
+          Powered by GTG Sollutions
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2>Administrator Dashboard</h2>
+          <div class="subtitle" id="welcomeText">
+            Centralized Outlet Management
+          </div>
+        </div>
+
+        <div class="admin-tag">ADMINISTRATOR</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="name">Outlets</div>
+          <div class="value">1</div>
+        </div>
+
+        <div class="stat">
+          <div class="name">Terminals</div>
+          <div class="value">1</div>
+        </div>
+
+        <div class="stat">
+          <div class="name">Cashiers</div>
+          <div class="value">—</div>
+        </div>
+      </div>
+
+      <section class="card">
+        <h3>Outlet Management</h3>
+        <p>
+          Current configured outlet. Live outlet management
+          and statistics will be added in a later step.
+        </p>
+
+        <div class="outlet-box">
+          <div>
+            <strong>Kotikawaththa</strong>
+            <small>OUT-001 · POS-01</small>
+          </div>
+          <span class="status">CONFIGURED</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Create Cashier Account</h3>
+        <p>
+          Create a secure cashier login and assign it
+          to the Kotikawaththa outlet.
+        </p>
+
+        <form id="cashierForm">
+          <div class="form-grid">
+
+            <div class="field">
+              <label for="fullName">Cashier Full Name</label>
+              <input
+                id="fullName"
+                type="text"
+                maxlength="100"
+                autocomplete="off"
+                placeholder="Enter full name"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                minlength="3"
+                maxlength="40"
+                pattern="[A-Za-z0-9_.-]{3,40}"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                placeholder="e.g. cashier01"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="password">Temporary Password</label>
+              <input
+                id="password"
+                type="password"
+                minlength="12"
+                maxlength="128"
+                autocomplete="new-password"
+                placeholder="Minimum 12 characters"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="confirmPassword">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                minlength="12"
+                maxlength="128"
+                autocomplete="new-password"
+                placeholder="Re-enter password"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="outletCode">Assigned Outlet</label>
+              <select id="outletCode" required>
+                <option value="OUT-001">
+                  Kotikawaththa (OUT-001)
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="role">Account Role</label>
+              <input id="role"
+                     type="text"
+                     value="Cashier"
+                     disabled>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="createBtn"
+                    class="btn btn-primary"
+                    type="submit">
+              + Create Cashier Account
+            </button>
+
+            <button class="btn btn-secondary"
+                    type="reset">
+              Clear Form
+            </button>
+          </div>
+
+          <div id="formMessage"
+               class="message hidden"
+               role="status"
+               aria-live="polite"></div>
+        </form>
+      </section>
+
+      <div class="powered">
+        Premium POS · Smart Business Management System
+        · Powered by GTG Sollutions
+      </div>
+    </main>
+  </div>
+
+  <script>
+    "use strict";
+
+    const $ = id => document.getElementById(id);
+
+    function showMessage(text, type) {
+      const element = $("formMessage");
+      element.textContent = text;
+      element.className = "message " + type;
+    }
+
+    function clearMessage() {
+      $("formMessage").textContent = "";
+      $("formMessage").className = "message hidden";
+    }
+
+    function redirectToLogin() {
+      window.location.replace("/login.html");
+    }
+
+    // Verify Administrator access before showing the portal.
+    async function initializeAdmin() {
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+
+        if (!response.ok) {
+          redirectToLogin();
+          return;
+        }
+
+        const data = await response.json();
+
+        if (
+          !data.success ||
+          !data.user ||
+          data.user.role !== "admin"
+        ) {
+          $("loading").innerHTML =
+            "<div><h2>Access Denied</h2>" +
+            "<p>Administrator access required.</p>" +
+            "<a href='/login.html' " +
+            "style='color:#60A5FA'>Return to Login</a>" +
+            "</div>";
+          return;
+        }
+
+        $("welcomeText").textContent =
+          "Welcome, " + data.user.fullName +
+          " · Centralized Outlet Management";
+
+        $("loading").classList.add("hidden");
+        $("app").classList.remove("hidden");
+
+      } catch {
+        $("loading").innerHTML =
+          "<div><h2>Connection Error</h2>" +
+          "<p>Unable to verify your session. " +
+          "Check your connection and refresh.</p></div>";
+      }
+    }
+
+    // Create cashier through Administrator-only API.
+    $("cashierForm").addEventListener(
+      "submit",
+      async function(event) {
+        event.preventDefault();
+        clearMessage();
+
+        const fullName = $("fullName").value.trim();
+        const username = $("username").value
+          .trim().toLowerCase();
+
+        const password = $("password").value;
+        const confirmPassword =
+          $("confirmPassword").value;
+
+        const outletCode = $("outletCode").value;
+
+        if (password !== confirmPassword) {
+          showMessage(
+            "Passwords do not match.",
+            "error"
+          );
+          return;
+        }
+
+        if (
+          password.length < 12 ||
+          password.length > 128
+        ) {
+          showMessage(
+            "Password must contain 12 to 128 characters.",
+            "error"
+          );
+          return;
+        }
+
+        const button = $("createBtn");
+        button.disabled = true;
+        button.textContent = "Creating account...";
+
+        try {
+          const response = await fetch(
+            "/api/admin/cashiers",
+            {
+              method: "POST",
+              credentials: "same-origin",
+              cache: "no-store",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                fullName,
+                username,
+                password,
+                outletCode
+              })
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            showMessage(
+              data.error || "Unable to create cashier.",
+              "error"
+            );
+            return;
+          }
+
+          $("cashierForm").reset();
+
+          showMessage(
+            "Cashier account created successfully. " +
+            "Username: " + data.user.username +
+            " | Outlet: " + data.outletCode,
+            "success"
+          );
+
+        } catch {
+          showMessage(
+            "Request failed or connection was lost. " +
+            "Check whether the account was created " +
+            "before trying again.",
+            "error"
+          );
+        } finally {
+          button.disabled = false;
+          button.textContent =
+            "+ Create Cashier Account";
+        }
+      }
+    );
+
+    $("cashierForm").addEventListener(
+      "reset",
+      () => {
+        clearMessage();
+      }
+    );
+
+    // End the Administrator session.
+    $("logoutBtn").addEventListener(
+      "click",
+      async () => {
+        const button = $("logoutBtn");
+        button.disabled = true;
+
+        try {
+          const response = await fetch(
+            "/api/auth/logout",
+            {
+              method: "POST",
+              credentials: "same-origin",
+              headers: {
+                "Content-Type": "application/json"
+              }
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error("Logout failed");
+          }
+
+          redirectToLogin();
+
+        } catch {
+          button.disabled = false;
+          alert(
+            "Unable to log out. Please try again."
+          );
+        }
+      }
+    );
+
+    initializeAdmin();
+  </script>
+</body>
+</html>
