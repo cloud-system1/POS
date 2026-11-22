@@ -1510,6 +1510,100 @@
     );
 
     
+    // ==========================================
+    // ADMIN: SAVE OUTLET CHANGES
+    // ==========================================
+
+    $("editOutletForm").addEventListener(
+      "submit",
+      async function(event) {
+        event.preventDefault();
+
+        const button = $("updateOutletBtn");
+        const message = $("editOutletMessage");
+
+        const outletId = $("editOutletSelect").value;
+        const outletName = $("editOutletName").value.trim();
+        const address = $("editOutletAddress").value.trim();
+        const phone = $("editOutletPhone").value.trim();
+        const email = $("editOutletEmail").value.trim();
+        const managerName = $("editOutletManager").value.trim();
+
+        if (!outletId) {
+          message.textContent = "Please select an outlet.";
+          message.className = "message error";
+          return;
+        }
+
+        if (outletName.length < 2 ||
+            outletName.length > 100) {
+          message.textContent =
+            "Outlet name must contain 2-100 characters.";
+          message.className = "message error";
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Saving changes...";
+
+        try {
+          const response = await fetch(
+            "/api/admin/outlets",
+            {
+              method: "PUT",
+              credentials: "same-origin",
+              cache: "no-store",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                outletId,
+                outletName,
+                address,
+                phone,
+                email,
+                managerName
+              })
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(
+              data.error || "Unable to update outlet."
+            );
+          }
+
+          message.textContent =
+            "Outlet details updated successfully.";
+          message.className = "message success";
+
+          // Refresh outlet management information.
+          await loadAdminOutlets();
+
+          // Refresh cloud sales reporting.
+          await loadOutletSales();
+
+          // Refresh editable outlet records.
+          await loadEditableOutlets();
+
+        } catch (error) {
+          message.textContent =
+            "Update result: " + error.message +
+            ". If the connection was interrupted, " +
+            "check the saved details before retrying.";
+
+          message.className = "message error";
+
+        } finally {
+          button.disabled = false;
+          button.textContent = "Save Outlet Changes";
+        }
+      }
+    );
+
+    
     initializeAdmin();
   </script>
 </body>
