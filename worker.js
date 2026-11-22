@@ -1076,6 +1076,122 @@ async function createCashier(request, env) {
  // ==========================================
  // ADMIN: UPDATE OUTLET DETAILS
  // ==========================================
+
+
+ // ==========================================
+ // ADMIN: ACTIVATE / DEACTIVATE OUTLET
+ // ==========================================
+
+ async function changeAdminOutletStatus(request, env) {
+   if (!env.DB) {
+     return json({ error: "Database unavailable" }, 503);
+   }
+
+   let admin;
+
+   try {
+     admin = await requireAdmin(request, env);
+   } catch {
+     return json({ error: "Authentication unavailable" }, 503);
+   }
+
+   if (admin.error) return admin.error;
+
+   let body;
+
+   try {
+     body = await request.json();
+   } catch {
+     return json({ error: "Invalid JSON request" }, 400);
+   }
+
+   if (!body || typeof body !== "object" ||
+       Array.isArray(body)) {
+     return json({ error: "Invalid outlet data" }, 400);
+   }
+
+   if (typeof body.outletId !== "string" ||
+       !body.outletId.trim() ||
+       body.outletId.length > 100) {
+     return json({ error: "Invalid outlet ID" }, 400);
+   }
+
+   if (body.isActive !== 0 && body.isActive !== 1) {
+     return json({
+       error: "isActive must be 0 or 1"
+     }, 400);
+   }
+
+   const outletId = body.outletId.trim();
+   const isActive = body.isActive;
+
+   try {
+     const existing = await env.DB.prepare(`
+       SELECT outlet_id, outlet_code, outlet_name, is_active
+       FROM outlets
+       WHERE outlet_id = ?
+     `).bind(outletId).first();
+
+     if (!existing) {
+       return json({ error: "Outlet not found" }, 404);
+     }
+
+     if (Number(existing.is_active) === isActive) {
+       return json({
+         success: true,
+         message: "Outlet already has this status",
+         outlet_code: existing.outlet_code,
+         is_active: isActive
+       });
+     }
+
+     // Do not deactivate outlets with active terminals.
+     if (isActive === 0) {
+       const terminal = await env.DB.prepare(`
+         SELECT terminal_id
+         FROM outlet_terminals
+         WHERE outlet_id = ?
+           AND is_active = 1
+         LIMIT 1
+       `).bind(outletId).first();
+
+       if (terminal) {
+         return json({
+           error: "Cannot deactivate an outlet with active terminals"
+         }, 409);
+       }
+     }
+
+     const result = await env.DB.prepare(`
+       UPDATE outlets
+       SET is_active = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE outlet_id = ?
+     `).bind(isActive, outletId).run();
+
+     if (!result.meta || result.meta.changes === 0) {
+       return json({
+         error: "Outlet status was not updated"
+       }, 409);
+     }
+
+     return json({
+       success: true,
+       message: isActive === 1
+         ? "Outlet activated successfully"
+         : "Outlet deactivated successfully",
+       outlet_code: existing.outlet_code,
+       is_active: isActive
+     });
+
+   } catch {
+     return json({
+       error: "Unable to change outlet status"
+     }, 500);
+   }
+ }
+
+
  async function updateAdminOutlet(request, env) {
    if (!env.DB) {
      return json({ error: "Database unavailable" }, 503);
