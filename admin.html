@@ -527,21 +527,33 @@
 </section>
 
 
+      
+      <!-- DYNAMIC OUTLET MANAGEMENT -->
       <section class="card">
         <h3>Outlet Management</h3>
         <p>
-          Current configured outlet. Live outlet management
-          and statistics will be added in a later step.
+          Registered business outlets managed centrally
+          through Premium POS.
         </p>
 
-        <div class="outlet-box">
-          <div>
-            <strong>Kotikawaththa</strong>
-            <small>OUT-001 · POS-01</small>
-          </div>
-          <span class="status">CONFIGURED</span>
+        <div class="actions">
+          <button
+            id="refreshOutletsBtn"
+            class="btn btn-secondary"
+            type="button">
+            Refresh Outlets
+          </button>
         </div>
+
+        <div id="adminOutletList"
+             aria-live="polite">
+          Loading registered outlets...
+        </div>
+
+        <p id="outletManagementStatus"
+           role="status"></p>
       </section>
+
 
       <section class="card">
         <h3>Create Cashier Account</h3>
@@ -708,6 +720,9 @@
         $("app").classList.remove("hidden");
         
         loadOutletSales();
+
+        
+        loadAdminOutlets();
 
 
       } catch {
@@ -961,6 +976,94 @@
     $("refreshSalesBtn").addEventListener(
       "click",
       loadOutletSales
+    );
+
+    
+    // ==========================================
+    // ADMIN: LOAD REGISTERED OUTLETS
+    // ==========================================
+    async function loadAdminOutlets() {
+      const button = $("refreshOutletsBtn");
+      const container = $("adminOutletList");
+      const status = $("outletManagementStatus");
+
+      button.disabled = true;
+      status.textContent = "Updating outlet information...";
+
+      try {
+        const response = await fetch(
+          "/api/admin/outlets",
+          {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Unable to retrieve outlets (" +
+            response.status + ")"
+          );
+        }
+
+        const data = await response.json();
+
+        if (!data.success ||
+            !Array.isArray(data.outlets)) {
+          throw new Error("Invalid outlet response");
+        }
+
+        container.replaceChildren();
+
+        data.outlets.forEach(outlet => {
+          const row = document.createElement("div");
+          row.className = "outlet-box";
+
+          const details = document.createElement("div");
+
+          const name = document.createElement("strong");
+          name.textContent = outlet.outlet_name;
+
+          const code = document.createElement("small");
+          code.textContent = outlet.outlet_code;
+
+          details.append(name, code);
+
+          const state = document.createElement("span");
+          state.className = "status";
+
+          if (Number(outlet.is_active) === 1) {
+            state.textContent = "ACTIVE";
+          } else {
+            state.textContent = "INACTIVE";
+            state.style.color = "#F87171";
+          }
+
+          row.append(details, state);
+          container.appendChild(row);
+        });
+
+        if (data.outlets.length === 0) {
+          container.textContent =
+            "No outlets have been registered.";
+        }
+
+        status.textContent =
+          data.outlets.length +
+          " registered outlet(s) loaded.";
+
+      } catch (error) {
+        status.textContent =
+          "Outlet management error: " + error.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    $("refreshOutletsBtn").addEventListener(
+      "click",
+      loadAdminOutlets
     );
 
 
