@@ -1072,6 +1072,129 @@ async function createCashier(request, env) {
  // ==========================================
  // ADMIN: CREATE NEW OUTLET
  // ==========================================
+
+ // ==========================================
+ // ADMIN: UPDATE OUTLET DETAILS
+ // ==========================================
+ async function updateAdminOutlet(request, env) {
+   if (!env.DB) {
+     return json({ error: "Database unavailable" }, 503);
+   }
+
+   let admin;
+
+   try {
+     admin = await requireAdmin(request, env);
+   } catch {
+     return json({ error: "Authentication unavailable" }, 503);
+   }
+
+   if (admin.error) {
+     return admin.error;
+   }
+
+   let body;
+
+   try {
+     body = await request.json();
+   } catch {
+     return json({ error: "Invalid JSON request" }, 400);
+   }
+
+   if (!body || typeof body !== "object" ||
+       Array.isArray(body)) {
+     return json({ error: "Invalid outlet data" }, 400);
+   }
+
+   const fields = [
+     "outletId",
+     "outletName",
+     "address",
+     "phone",
+     "email",
+     "managerName"
+   ];
+
+   for (const field of fields) {
+     if (body[field] !== undefined &&
+         body[field] !== null &&
+         typeof body[field] !== "string") {
+       return json({
+         error: "Invalid value for " + field
+       }, 400);
+     }
+   }
+
+   const outletId = (body.outletId || "").trim();
+   const outletName = (body.outletName || "").trim();
+   const address = (body.address || "").trim();
+   const phone = (body.phone || "").trim();
+   const email = (body.email || "").trim();
+   const managerName = (body.managerName || "").trim();
+
+   if (!outletId || outletId.length > 100) {
+     return json({ error: "Invalid outlet ID" }, 400);
+   }
+
+   if (outletName.length < 2 ||
+       outletName.length > 100) {
+     return json({
+       error: "Outlet name must contain 2-100 characters"
+     }, 400);
+   }
+
+   if (address.length > 250 ||
+       phone.length > 30 ||
+       email.length > 150 ||
+       managerName.length > 100) {
+     return json({
+       error: "One or more outlet fields are too long"
+     }, 400);
+   }
+
+   if (email &&
+       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+     return json({ error: "Invalid email address" }, 400);
+   }
+
+   try {
+     const result = await env.DB.prepare(`
+       UPDATE outlets
+       SET
+         outlet_name = ?,
+         address = ?,
+         phone = ?,
+         email = ?,
+         manager_name = ?,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE outlet_id = ?
+     `).bind(
+       outletName,
+       address || null,
+       phone || null,
+       email || null,
+       managerName || null,
+       outletId
+     ).run();
+
+     if (!result.meta || result.meta.changes === 0) {
+       return json({ error: "Outlet not found" }, 404);
+     }
+
+     return json({
+       success: true,
+       message: "Outlet updated successfully",
+       outlet_id: outletId
+     });
+
+   } catch {
+     return json({
+       error: "Unable to update outlet"
+     }, 500);
+   }
+ }
+
+
  async function createAdminOutlet(request, env) {
    if (!env.DB) {
      return json({ error: "Database unavailable" }, 503);
@@ -1390,6 +1513,10 @@ export default {
     // ==========================================
     // ADMINISTRATOR: OUTLET MANAGEMENT
     // ==========================================
+ 
+    // ==========================================
+    // ADMINISTRATOR: OUTLET MANAGEMENT
+    // ==========================================
     if (url.pathname === "/api/admin/outlets") {
 
       // Retrieve all registered outlets
@@ -1402,11 +1529,17 @@ export default {
         return createAdminOutlet(request, env);
       }
 
+      // Update existing outlet details
+      if (request.method === "PUT") {
+        return updateAdminOutlet(request, env);
+      }
+
       // Reject unsupported methods
       return json({
         error: "Method not allowed"
       }, 405);
     }
+
 
 
 
