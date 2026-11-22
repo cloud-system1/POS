@@ -477,6 +477,56 @@
         </div>
       </div>
 
+      
+<!-- LIVE CLOUD SALES REPORTING -->
+<section class="card">
+  <h3>Live Outlet Sales</h3>
+  <p>
+    Cloud-synchronized sales across registered outlets.
+    Unsynchronized sales are not included.
+  </p>
+
+  <div class="stats" style="margin-top:20px">
+    <div class="stat">
+      <div class="name">Total Revenue</div>
+      <div class="value" id="liveRevenue">
+        —
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="name">Completed Sales</div>
+      <div class="value" id="liveSales">
+        —
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="name">Reporting Outlets</div>
+      <div class="value" id="liveOutlets">
+        —
+      </div>
+    </div>
+  </div>
+
+  <div id="outletSalesList"
+       aria-live="polite"
+       style="margin-top:15px">
+    Loading outlet sales...
+  </div>
+
+  <div class="actions">
+    <button type="button"
+            class="btn btn-secondary"
+            id="refreshSalesBtn">
+      Refresh Sales
+    </button>
+  </div>
+
+  <p id="salesReportStatus" role="status"></p>
+</section>
+
+
       <section class="card">
         <h3>Outlet Management</h3>
         <p>
@@ -656,6 +706,9 @@
 
         $("loading").classList.add("hidden");
         $("app").classList.remove("hidden");
+        
+        loadOutletSales();
+
 
       } catch {
         $("loading").innerHTML =
@@ -798,6 +851,118 @@
         }
       }
     );
+
+    
+    // Load live outlet sales from Cloudflare D1.
+    async function loadOutletSales() {
+      const button = $("refreshSalesBtn");
+      button.disabled = true;
+
+      $("salesReportStatus").textContent =
+        "Updating sales information...";
+
+      try {
+        const response = await fetch(
+          "/api/admin/sales-summary",
+          {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Unable to retrieve sales (" +
+            response.status + ")"
+          );
+        }
+
+        const data = await response.json();
+
+        if (!data.success ||
+            !Array.isArray(data.outlets)) {
+          throw new Error("Invalid sales response");
+        }
+
+        const outlets = data.outlets;
+
+        const totalSales = outlets.reduce(
+          (sum, outlet) =>
+            sum + Number(outlet.total_sales || 0),
+          0
+        );
+
+        const totalCents = outlets.reduce(
+          (sum, outlet) =>
+            sum + Number(
+              outlet.total_revenue_cents || 0
+            ),
+          0
+        );
+
+        const money = cents =>
+          "Rs. " + (cents / 100).toLocaleString(
+            "en-LK",
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }
+          );
+
+        $("liveRevenue").textContent =
+          money(totalCents);
+
+        $("liveSales").textContent =
+          totalSales.toLocaleString("en-LK");
+
+        $("liveOutlets").textContent =
+          outlets.length;
+
+        const container = $("outletSalesList");
+        container.replaceChildren();
+
+        outlets.forEach(outlet => {
+          const row = document.createElement("div");
+          row.className = "outlet-box";
+
+          const details = document.createElement("div");
+          const name = document.createElement("strong");
+          const code = document.createElement("small");
+
+          name.textContent = outlet.outlet_name;
+          code.textContent =
+            outlet.outlet_code + " · " +
+            outlet.total_sales + " sales";
+
+          details.append(name, code);
+
+          const amount = document.createElement("strong");
+          amount.style.color = "#60A5FA";
+          amount.textContent = money(
+            Number(outlet.total_revenue_cents || 0)
+          );
+
+          row.append(details, amount);
+          container.appendChild(row);
+        });
+
+        $("salesReportStatus").textContent =
+          "Sales information updated successfully.";
+
+      } catch (error) {
+        $("salesReportStatus").textContent =
+          "Sales report error: " + error.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    $("refreshSalesBtn").addEventListener(
+      "click",
+      loadOutletSales
+    );
+
 
     initializeAdmin();
   </script>
