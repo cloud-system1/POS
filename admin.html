@@ -527,6 +527,114 @@
 </section>
 
 
+      <!-- CREATE NEW BUSINESS OUTLET -->
+      <section class="card">
+        <h3>Create New Outlet</h3>
+        <p>
+          Register a new business location in Premium POS.
+          Each outlet must have a unique outlet code.
+        </p>
+
+        <form id="createOutletForm">
+          <div class="form-grid">
+
+            <div class="field">
+              <label for="newOutletCode">
+                Outlet Code *
+              </label>
+              <input
+                id="newOutletCode"
+                type="text"
+                maxlength="20"
+                pattern="[A-Za-z0-9-]{3,20}"
+                placeholder="e.g. OUT-002"
+                autocomplete="off"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="newOutletName">
+                Outlet Name *
+              </label>
+              <input
+                id="newOutletName"
+                type="text"
+                minlength="2"
+                maxlength="100"
+                placeholder="e.g. Colombo Branch"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="newOutletAddress">
+                Address
+              </label>
+              <input
+                id="newOutletAddress"
+                type="text"
+                maxlength="250"
+                placeholder="Business address">
+            </div>
+
+            <div class="field">
+              <label for="newOutletPhone">
+                Contact Number
+              </label>
+              <input
+                id="newOutletPhone"
+                type="tel"
+                maxlength="30"
+                placeholder="e.g. 0112345678">
+            </div>
+
+            <div class="field">
+              <label for="newOutletEmail">
+                Email Address
+              </label>
+              <input
+                id="newOutletEmail"
+                type="email"
+                maxlength="150"
+                placeholder="branch@example.com">
+            </div>
+
+            <div class="field">
+              <label for="newOutletManager">
+                Manager Name
+              </label>
+              <input
+                id="newOutletManager"
+                type="text"
+                maxlength="100"
+                placeholder="Outlet manager">
+            </div>
+
+          </div>
+
+          <div class="actions">
+            <button
+              id="saveOutletBtn"
+              class="btn btn-primary"
+              type="submit">
+              + Create Outlet
+            </button>
+
+            <button
+              class="btn btn-secondary"
+              type="reset">
+              Clear Form
+            </button>
+          </div>
+
+          <div
+            id="createOutletMessage"
+            class="message hidden"
+            role="status"
+            aria-live="polite">
+          </div>
+        </form>
+      </section>
+
       
       <!-- DYNAMIC OUTLET MANAGEMENT -->
       <section class="card">
