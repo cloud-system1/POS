@@ -1068,6 +1068,148 @@ async function createCashier(request, env) {
  // ADMIN: LIST ALL OUTLETS
  // ==========================================
 
+
+ // ==========================================
+ // ADMIN: CREATE NEW OUTLET
+ // ==========================================
+ async function createAdminOutlet(request, env) {
+   if (!env.DB) {
+     return json({ error: "Database unavailable" }, 503);
+   }
+
+   let admin;
+
+   try {
+     admin = await requireAdmin(request, env);
+   } catch {
+     return json({ error: "Authentication unavailable" }, 503);
+   }
+
+   if (admin.error) {
+     return admin.error;
+   }
+
+   let body;
+
+   try {
+     body = await request.json();
+   } catch {
+     return json({ error: "Invalid JSON request" }, 400);
+   }
+
+   if (!body || typeof body !== "object" ||
+       Array.isArray(body)) {
+     return json({ error: "Invalid outlet data" }, 400);
+   }
+
+   const fields = [
+     "outletCode",
+     "outletName",
+     "address",
+     "phone",
+     "email",
+     "managerName"
+   ];
+
+   for (const field of fields) {
+     if (body[field] !== undefined &&
+         body[field] !== null &&
+         typeof body[field] !== "string") {
+       return json({
+         error: "Invalid value for " + field
+       }, 400);
+     }
+   }
+
+   const outletCode = (body.outletCode || "")
+     .trim().toUpperCase();
+
+   const outletName = (body.outletName || "").trim();
+   const address = (body.address || "").trim();
+   const phone = (body.phone || "").trim();
+   const email = (body.email || "").trim();
+   const managerName = (body.managerName || "").trim();
+
+   if (!/^[A-Z0-9-]{3,20}$/.test(outletCode)) {
+     return json({
+       error: "Outlet code must contain 3-20 letters, numbers or hyphens"
+     }, 400);
+   }
+
+   if (outletName.length < 2 || outletName.length > 100) {
+     return json({
+       error: "Outlet name must contain 2-100 characters"
+     }, 400);
+   }
+
+   if (address.length > 250 ||
+       phone.length > 30 ||
+       email.length > 150 ||
+       managerName.length > 100) {
+     return json({
+       error: "One or more outlet fields are too long"
+     }, 400);
+   }
+
+   if (email &&
+       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+     return json({
+       error: "Invalid email address"
+     }, 400);
+   }
+
+   const outletId = crypto.randomUUID();
+
+   try {
+     await env.DB.prepare(`
+       INSERT INTO outlets (
+         outlet_id,
+         outlet_code,
+         outlet_name,
+         address,
+         phone,
+         email,
+         manager_name,
+         is_active
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+     `).bind(
+       outletId,
+       outletCode,
+       outletName,
+       address || null,
+       phone || null,
+       email || null,
+       managerName || null
+     ).run();
+
+     return json({
+       success: true,
+       message: "Outlet created successfully",
+       outlet: {
+         outlet_id: outletId,
+         outlet_code: outletCode,
+         outlet_name: outletName,
+         is_active: 1
+       }
+     }, 201);
+
+   } catch (error) {
+     const message = String(error?.message || "");
+
+     if (message.includes("UNIQUE constraint failed")) {
+       return json({
+         error: "Outlet code already exists"
+       }, 409);
+     }
+
+     return json({
+       error: "Unable to create outlet"
+     }, 500);
+   }
+ }
+
+
  async function listAdminOutlets(request, env) {
    if (!env.DB) {
      return json({
@@ -1244,15 +1386,28 @@ export default {
     }
     
     // Administrator-only outlet management
+  
+    // ==========================================
+    // ADMINISTRATOR: OUTLET MANAGEMENT
+    // ==========================================
     if (url.pathname === "/api/admin/outlets") {
-      if (request.method !== "GET") {
-        return json({
-          error: "Method not allowed"
-        }, 405);
+
+      // Retrieve all registered outlets
+      if (request.method === "GET") {
+        return listAdminOutlets(request, env);
       }
 
-      return listAdminOutlets(request, env);
+      // Create a new business outlet
+      if (request.method === "POST") {
+        return createAdminOutlet(request, env);
+      }
+
+      // Reject unsupported methods
+      return json({
+        error: "Method not allowed"
+      }, 405);
     }
+
 
 
 
