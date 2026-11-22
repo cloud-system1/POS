@@ -636,6 +636,105 @@
       </section>
 
       
+      <!-- EDIT EXISTING OUTLET -->
+      <section class="card" id="editOutletSection">
+        <h3>Edit Outlet Details</h3>
+        <p>
+          Select a registered outlet to update its
+          business and contact information.
+        </p>
+
+        <form id="editOutletForm">
+          <div class="form-grid">
+
+            <div class="field">
+              <label for="editOutletSelect">
+                Select Outlet *
+              </label>
+              <select id="editOutletSelect" required>
+                <option value="">
+                  Loading outlets...
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="editOutletCode">
+                Outlet Code
+              </label>
+              <input id="editOutletCode"
+                     type="text"
+                     disabled>
+            </div>
+
+            <div class="field">
+              <label for="editOutletName">
+                Outlet Name *
+              </label>
+              <input id="editOutletName"
+                     type="text"
+                     minlength="2"
+                     maxlength="100"
+                     required>
+            </div>
+
+            <div class="field">
+              <label for="editOutletAddress">
+                Address
+              </label>
+              <input id="editOutletAddress"
+                     type="text"
+                     maxlength="250">
+            </div>
+
+            <div class="field">
+              <label for="editOutletPhone">
+                Contact Number
+              </label>
+              <input id="editOutletPhone"
+                     type="tel"
+                     maxlength="30">
+            </div>
+
+            <div class="field">
+              <label for="editOutletEmail">
+                Email Address
+              </label>
+              <input id="editOutletEmail"
+                     type="email"
+                     maxlength="150">
+            </div>
+
+            <div class="field">
+              <label for="editOutletManager">
+                Manager Name
+              </label>
+              <input id="editOutletManager"
+                     type="text"
+                     maxlength="100">
+            </div>
+
+          </div>
+
+          <div class="actions">
+            <button id="updateOutletBtn"
+                    class="btn btn-primary"
+                    type="submit"
+                    disabled>
+              Save Outlet Changes
+            </button>
+          </div>
+
+          <div id="editOutletMessage"
+               class="message hidden"
+               role="status"
+               aria-live="polite">
+          </div>
+        </form>
+      </section>
+
+
+      
       <!-- DYNAMIC OUTLET MANAGEMENT -->
       <section class="card">
         <h3>Outlet Management</h3>
