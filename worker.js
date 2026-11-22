@@ -1657,6 +1657,14 @@ export default {
     }
 
 
+if (url.pathname === "/api/admin/outlets/status") {
+  if (request.method === "PATCH") {
+    return changeAdminOutletStatus(request, env);
+  }
+
+  return json({ error: "Method not allowed" }, 405);
+}
+
 
 
 
