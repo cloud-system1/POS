@@ -331,6 +331,28 @@ async function syncSale(request, env) {
       }, 409);
     }
 
+    
+    // Identify the outlet from the authenticated POS device.
+    const assignment = await env.DB.prepare(`
+      SELECT o.outlet_id
+      FROM outlet_terminals AS t
+      INNER JOIN outlets AS o
+        ON o.outlet_id = t.outlet_id
+      WHERE t.device_id = ?
+        AND t.is_active = 1
+        AND o.is_active = 1
+      LIMIT 1
+    `).bind(device.device_id).first();
+
+    if (!assignment) {
+      return json({
+        error: "Device has no active outlet assignment"
+      }, 403);
+    }
+
+
+
+    
     await env.DB.prepare(`
       INSERT INTO sales (
         sale_id,
@@ -339,9 +361,10 @@ async function syncSale(request, env) {
         created_at,
         currency,
         total_cents,
-        payload_json
+        payload_json,
+        outlet_id
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       saleId,
       eventId,
@@ -349,8 +372,10 @@ async function syncSale(request, env) {
       createdAt,
       "LKR",
       totalCents,
-      payloadJSON
+      payloadJSON,
+      assignment.outlet_id
     ).run();
+
 
     return json({
       success: true,
