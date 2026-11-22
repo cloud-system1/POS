@@ -1174,6 +1174,117 @@
       loadAdminOutlets
     );
 
+    
+    // ==========================================
+    // ADMIN: CREATE NEW OUTLET
+    // ==========================================
+
+    $("createOutletForm").addEventListener(
+      "submit",
+      async function(event) {
+        event.preventDefault();
+
+        const button = $("saveOutletBtn");
+        const message = $("createOutletMessage");
+
+        message.textContent = "";
+        message.className = "message hidden";
+
+        const outletCode = $("newOutletCode")
+          .value.trim().toUpperCase();
+
+        const outletName = $("newOutletName")
+          .value.trim();
+
+        const address = $("newOutletAddress")
+          .value.trim();
+
+        const phone = $("newOutletPhone")
+          .value.trim();
+
+        const email = $("newOutletEmail")
+          .value.trim();
+
+        const managerName = $("newOutletManager")
+          .value.trim();
+
+        if (!/^[A-Z0-9-]{3,20}$/.test(outletCode)) {
+          message.textContent =
+            "Invalid outlet code. Use 3-20 letters, numbers or hyphens.";
+          message.className = "message error";
+          return;
+        }
+
+        if (outletName.length < 2 ||
+            outletName.length > 100) {
+          message.textContent =
+            "Outlet name must contain 2-100 characters.";
+          message.className = "message error";
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Creating outlet...";
+
+        try {
+          const response = await fetch(
+            "/api/admin/outlets",
+            {
+              method: "POST",
+              credentials: "same-origin",
+              cache: "no-store",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                outletCode,
+                outletName,
+                address,
+                phone,
+                email,
+                managerName
+              })
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(
+              data.error || "Unable to create outlet."
+            );
+          }
+
+          $("createOutletForm").reset();
+
+          message.textContent =
+            "Outlet created successfully: " +
+            data.outlet.outlet_name +
+            " (" + data.outlet.outlet_code + ")";
+
+          message.className = "message success";
+
+          // Refresh the registered outlet list.
+          await loadAdminOutlets();
+
+          // Refresh cloud sales reporting.
+          await loadOutletSales();
+
+        } catch (error) {
+          message.textContent =
+            "Outlet creation result: " + error.message +
+            ". If the connection was interrupted, " +
+            "refresh the outlet list before retrying.";
+
+          message.className = "message error";
+
+        } finally {
+          button.disabled = false;
+          button.textContent = "+ Create Outlet";
+        }
+      }
+    );
+
 
     initializeAdmin();
   </script>
