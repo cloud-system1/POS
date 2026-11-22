@@ -8,9 +8,12 @@ const json = (data, status = 200) =>
     }
   });
 
+// ==========================================
+// SECURITY UTILITIES
+// ==========================================
+
 function randomToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-
   return Array.from(bytes, b =>
     b.toString(16).padStart(2, "0")
   ).join("");
@@ -19,15 +22,10 @@ function randomToken() {
 async function sha256(value) {
   const bytes = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
-
   return Array.from(new Uint8Array(digest), b =>
     b.toString(16).padStart(2, "0")
   ).join("");
 }
-
-// ==========================================
-// USER AUTHENTICATION - PASSWORD SECURITY
-// ==========================================
 
 const PASSWORD_ITERATIONS = 100000;
 
@@ -54,16 +52,15 @@ async function hashPassword(
     {
       name: "PBKDF2",
       salt: encoder.encode(salt),
-      iterations: iterations,
+      iterations,
       hash: "SHA-256"
     },
     key,
     256
   );
 
-  return Array.from(
-    new Uint8Array(bits),
-    b => b.toString(16).padStart(2, "0")
+  return Array.from(new Uint8Array(bits), b =>
+    b.toString(16).padStart(2, "0")
   ).join("");
 }
 
@@ -77,19 +74,15 @@ function secureEqual(a, b) {
   }
 
   let difference = 0;
-
   for (let i = 0; i < a.length; i++) {
-    difference |=
-      a.charCodeAt(i) ^ b.charCodeAt(i);
+    difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
 
   return difference === 0;
 }
 
 function validUsername(username) {
-  return /^[a-zA-Z0-9_.-]{3,40}$/.test(
-    username
-  );
+  return /^[a-zA-Z0-9_.-]{3,40}$/.test(username);
 }
 
 function validPassword(password) {
@@ -100,12 +93,6 @@ function validPassword(password) {
   );
 }
 
-// ==========================================
-// END PASSWORD SECURITY
-// ==========================================
-
-
-// Read a small JSON request safely.
 async function readJSON(request, maxLength = 65536) {
   const length = Number(
     request.headers.get("content-length")
@@ -124,10 +111,15 @@ async function readJSON(request, maxLength = 65536) {
   return JSON.parse(raw);
 }
 
-// Register a cashier device.
+// ==========================================
+// CASHIER DEVICE REGISTRATION
+// ==========================================
+
 async function registerDevice(request, env) {
   if (!env.DB) {
-    return json({ error: "D1 database not configured" }, 503);
+    return json({
+      error: "D1 database not configured"
+    }, 503);
   }
 
   let body;
@@ -135,7 +127,9 @@ async function registerDevice(request, env) {
   try {
     body = await readJSON(request, 4096);
   } catch {
-    return json({ error: "Invalid registration request" }, 400);
+    return json({
+      error: "Invalid registration request"
+    }, 400);
   }
 
   const code = String(body?.code || "")
@@ -143,9 +137,13 @@ async function registerDevice(request, env) {
 
   const deviceId = String(body?.deviceId || "").trim();
 
-  if (!/^[a-f0-9]{48}$/.test(code) ||
-      !/^POS-[A-Za-z0-9-]{1,40}$/.test(deviceId)) {
-    return json({ error: "Invalid registration details" }, 400);
+  if (
+    !/^[a-f0-9]{48}$/.test(code) ||
+    !/^POS-[A-Za-z0-9-]{1,40}$/.test(deviceId)
+  ) {
+    return json({
+      error: "Invalid registration details"
+    }, 400);
   }
 
   try {
@@ -173,8 +171,10 @@ async function registerDevice(request, env) {
       `).bind(code, deviceId, tokenHash)
     ]);
 
-    if (result[0].meta.changes !== 1 ||
-        result[1].meta.changes !== 1) {
+    if (
+      result[0].meta.changes !== 1 ||
+      result[1].meta.changes !== 1
+    ) {
       return json({
         error: "Invalid code or device already registered"
       }, 403);
@@ -185,6 +185,7 @@ async function registerDevice(request, env) {
       deviceId,
       token
     });
+
   } catch {
     return json({
       error: "Device registration failed"
@@ -192,7 +193,10 @@ async function registerDevice(request, env) {
   }
 }
 
-// Authenticate a registered device.
+// ==========================================
+// DEVICE AUTHENTICATION
+// ==========================================
+
 async function authenticateDevice(request, env) {
   const authorization =
     request.headers.get("Authorization") || "";
@@ -216,10 +220,15 @@ async function authenticateDevice(request, env) {
   return device || null;
 }
 
-// Upload one completed sale.
+// ==========================================
+// SALES SYNCHRONIZATION
+// ==========================================
+
 async function syncSale(request, env) {
   if (!env.DB) {
-    return json({ error: "D1 database not configured" }, 503);
+    return json({
+      error: "D1 database not configured"
+    }, 503);
   }
 
   let device;
@@ -227,11 +236,15 @@ async function syncSale(request, env) {
   try {
     device = await authenticateDevice(request, env);
   } catch {
-    return json({ error: "Authentication unavailable" }, 503);
+    return json({
+      error: "Authentication unavailable"
+    }, 503);
   }
 
   if (!device) {
-    return json({ error: "Unauthorized device" }, 401);
+    return json({
+      error: "Unauthorized device"
+    }, 401);
   }
 
   let event;
@@ -239,7 +252,9 @@ async function syncSale(request, env) {
   try {
     event = await readJSON(request);
   } catch {
-    return json({ error: "Invalid sale request" }, 400);
+    return json({
+      error: "Invalid sale request"
+    }, 400);
   }
 
   const eventId = event?.id;
@@ -259,11 +274,11 @@ async function syncSale(request, env) {
     saleId.length < 1 ||
     saleId.length > 128
   ) {
-    return json({ error: "Invalid sale event" }, 400);
+    return json({
+      error: "Invalid sale event"
+    }, 400);
   }
 
- // POS stores monetary amounts as integer cents.
-  // Preserve the exact amount without conversion.
   const totalCents = sale.totalCents;
 
   if (
@@ -271,23 +286,25 @@ async function syncSale(request, env) {
     totalCents < 0 ||
     totalCents > 10000000000
   ) {
-    return json({ error: "Invalid sale total" }, 400);
+    return json({
+      error: "Invalid sale total"
+    }, 400);
   }
 
-  const createdAt = sale.createdAt ||
-    event.createdAt;
+  const createdAt = sale.createdAt || event.createdAt;
 
   if (
     typeof createdAt !== "string" ||
     !Number.isFinite(Date.parse(createdAt))
   ) {
-    return json({ error: "Invalid sale date" }, 400);
+    return json({
+      error: "Invalid sale date"
+    }, 400);
   }
 
   const payloadJSON = JSON.stringify(sale);
 
   try {
-    // First check for an already-saved sale.
     const existing = await env.DB.prepare(`
       SELECT sale_id, event_id, device_id
       FROM sales
@@ -341,8 +358,8 @@ async function syncSale(request, env) {
       saleId,
       duplicate: false
     });
+
   } catch {
-    // A concurrent retry may have inserted the sale.
     try {
       const existing = await env.DB.prepare(`
         SELECT sale_id, event_id, device_id
@@ -374,9 +391,8 @@ async function syncSale(request, env) {
   }
 }
 
-
 // ==========================================
-// CREATE FIRST ADMINISTRATOR
+// FIRST ADMINISTRATOR SETUP
 // ==========================================
 
 async function setupAdmin(request, env) {
@@ -505,11 +521,6 @@ async function setupAdmin(request, env) {
 }
 
 // ==========================================
-// END ADMINISTRATOR SETUP
-// ==========================================
-
-
-// ==========================================
 // USER LOGIN AND SESSION MANAGEMENT
 // ==========================================
 
@@ -523,10 +534,6 @@ function publicUser(user) {
     role: user.role
   };
 }
-
-// ------------------------------------------
-// USER LOGIN
-// ------------------------------------------
 
 async function loginUser(request, env) {
   if (!env.DB) {
@@ -593,7 +600,6 @@ async function loginUser(request, env) {
       passwordHash,
       user.password_hash
     )) {
-
       const now = new Date().toISOString();
 
       await env.DB.prepare(`
@@ -641,7 +647,6 @@ async function loginUser(request, env) {
     ).toISOString();
 
     const result = await env.DB.batch([
-
       env.DB.prepare(`
         INSERT INTO user_sessions (
           session_id,
@@ -677,7 +682,6 @@ async function loginUser(request, env) {
               AND user_id = users.user_id
           )
       `).bind(user.user_id, sessionId)
-
     ]);
 
     if (result[0].meta.changes !== 1) {
@@ -715,12 +719,11 @@ async function loginUser(request, env) {
   }
 }
 
-// ------------------------------------------
-// EXTRACT USER SESSION COOKIE
-// ------------------------------------------
+// ==========================================
+// SESSION COOKIE
+// ==========================================
 
 function getUserSessionToken(request) {
-
   const cookies =
     request.headers.get("Cookie") || "";
 
@@ -731,20 +734,17 @@ function getUserSessionToken(request) {
   return match ? match[1] : null;
 }
 
-// ------------------------------------------
+// ==========================================
 // VERIFY USER SESSION
-// ------------------------------------------
+// ==========================================
 
 async function authenticateUser(request, env) {
-
   if (!env.DB) return null;
 
   const token = getUserSessionToken(request);
-
   if (!token) return null;
 
   const tokenHash = await sha256(token);
-
   const now = new Date().toISOString();
 
   const user = await env.DB.prepare(`
@@ -763,25 +763,18 @@ async function authenticateUser(request, env) {
       AND s.expires_at > ?
       AND u.is_active = 1
     LIMIT 1
-  `).bind(
-    tokenHash,
-    now
-  ).first();
+  `).bind(tokenHash, now).first();
 
   return user || null;
 }
 
-// ------------------------------------------
+// ==========================================
 // CURRENT LOGGED-IN USER
-// ------------------------------------------
+// ==========================================
 
 async function currentUser(request, env) {
-
   try {
-    const user = await authenticateUser(
-      request,
-      env
-    );
+    const user = await authenticateUser(request, env);
 
     if (!user) {
       return json({
@@ -802,17 +795,15 @@ async function currentUser(request, env) {
   }
 }
 
-// ------------------------------------------
+// ==========================================
 // USER LOGOUT
-// ------------------------------------------
+// ==========================================
 
 async function logoutUser(request, env) {
-
   try {
     const token = getUserSessionToken(request);
 
     if (token) {
-
       const tokenHash = await sha256(token);
 
       await env.DB.prepare(`
@@ -821,7 +812,6 @@ async function logoutUser(request, env) {
         WHERE token_hash = ?
           AND revoked_at IS NULL
       `).bind(tokenHash).run();
-
     }
 
     return new Response(
@@ -852,16 +842,12 @@ async function logoutUser(request, env) {
   }
 }
 
-// ------------------------------------------
+// ==========================================
 // ADMINISTRATOR PERMISSION CHECK
-// ------------------------------------------
+// ==========================================
 
 async function requireAdmin(request, env) {
-
-  const user = await authenticateUser(
-    request,
-    env
-  );
+  const user = await authenticateUser(request, env);
 
   if (!user) {
     return {
@@ -883,18 +869,186 @@ async function requireAdmin(request, env) {
 }
 
 // ==========================================
-// END USER AUTHENTICATION
+// ADMIN: CREATE CASHIER ACCOUNT
 // ==========================================
 
+async function createCashier(request, env) {
+  if (!env.DB) {
+    return json({
+      error: "Database unavailable"
+    }, 503);
+  }
 
+  let admin;
+
+  try {
+    admin = await requireAdmin(request, env);
+  } catch {
+    return json({
+      error: "Authentication unavailable"
+    }, 503);
+  }
+
+  if (admin.error) {
+    return admin.error;
+  }
+
+  let body;
+
+  try {
+    body = await readJSON(request, 4096);
+  } catch {
+    return json({
+      error: "Invalid request"
+    }, 400);
+  }
+
+  const username = String(body?.username || "")
+    .trim().toLowerCase();
+
+  const fullName = String(body?.fullName || "").trim();
+
+  const outletCode = String(body?.outletCode || "")
+    .trim().toUpperCase();
+
+  const password = body?.password;
+
+  if (
+    !validUsername(username) ||
+    !validPassword(password) ||
+    !fullName ||
+    fullName.length > 100 ||
+    !/^OUT-[A-Z0-9-]{1,30}$/.test(outletCode)
+  ) {
+    return json({
+      error: "Invalid cashier account details"
+    }, 400);
+  }
+
+  try {
+    const outlet = await env.DB.prepare(`
+      SELECT outlet_id
+      FROM outlets
+      WHERE outlet_code = ?
+        AND is_active = 1
+      LIMIT 1
+    `).bind(outletCode).first();
+
+    if (!outlet) {
+      return json({
+        error: "Active outlet not found"
+      }, 404);
+    }
+
+    const existing = await env.DB.prepare(`
+      SELECT user_id
+      FROM users
+      WHERE username = ?
+      LIMIT 1
+    `).bind(username).first();
+
+    if (existing) {
+      return json({
+        error: "Username already exists"
+      }, 409);
+    }
+
+    const userId = crypto.randomUUID();
+    const salt = randomSalt();
+
+    const passwordHash = await hashPassword(
+      password,
+      salt
+    );
+
+    // Both inserts run in one D1 batch.
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO users (
+          user_id,
+          username,
+          full_name,
+          password_hash,
+          password_salt,
+          password_iterations,
+          role,
+          is_active
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 'cashier', 1)
+      `).bind(
+        userId,
+        username,
+        fullName,
+        passwordHash,
+        salt,
+        PASSWORD_ITERATIONS
+      ),
+
+      env.DB.prepare(`
+        INSERT INTO outlet_users (
+          outlet_id,
+          user_id,
+          is_active
+        )
+        VALUES (?, ?, 1)
+      `).bind(
+        outlet.outlet_id,
+        userId
+      )
+    ]);
+
+    if (
+      results[0].meta.changes !== 1 ||
+      results[1].meta.changes !== 1
+    ) {
+      return json({
+        error: "Cashier account creation failed"
+      }, 503);
+    }
+
+    return json({
+      success: true,
+      message: "Cashier account created",
+      user: {
+        userId,
+        username,
+        fullName,
+        role: "cashier"
+      },
+      outletCode
+    }, 201);
+
+  } catch (error) {
+    if (
+      String(error?.message || "")
+        .includes("UNIQUE constraint")
+    ) {
+      return json({
+        error: "Username already exists"
+      }, 409);
+    }
+
+    return json({
+      error: "Cashier account creation failed"
+    }, 503);
+  }
+}
+
+// ==========================================
+// CLOUDFLARE WORKER ROUTES
+// ==========================================
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Reject cross-origin authentication changes
+    // Reject cross-origin authentication
+    // and Administrator POST requests.
     if (
-      url.pathname.startsWith("/api/auth/") &&
+      (
+        url.pathname.startsWith("/api/auth/") ||
+        url.pathname.startsWith("/api/admin/")
+      ) &&
       request.method === "POST" &&
       request.headers.get("Origin") !== url.origin
     ) {
@@ -905,7 +1059,6 @@ export default {
 
     // User login
     if (url.pathname === "/api/auth/login") {
-
       if (request.method !== "POST") {
         return json({
           error: "Method not allowed"
@@ -917,7 +1070,6 @@ export default {
 
     // User logout
     if (url.pathname === "/api/auth/logout") {
-
       if (request.method !== "POST") {
         return json({
           error: "Method not allowed"
@@ -929,7 +1081,6 @@ export default {
 
     // Verify current user
     if (url.pathname === "/api/auth/me") {
-
       if (request.method !== "GET") {
         return json({
           error: "Method not allowed"
@@ -939,8 +1090,18 @@ export default {
       return currentUser(request, env);
     }
 
+    // Administrator-only cashier creation
+    if (url.pathname === "/api/admin/cashiers") {
+      if (request.method !== "POST") {
+        return json({
+          error: "Method not allowed"
+        }, 405);
+      }
 
-    // First administrator setup
+      return createCashier(request, env);
+    }
+
+    // First Administrator setup
     if (url.pathname === "/api/auth/setup") {
       if (request.method !== "POST") {
         return json({
@@ -951,28 +1112,36 @@ export default {
       return setupAdmin(request, env);
     }
 
+    // Register cashier terminal
     if (url.pathname === "/api/register") {
       if (request.method !== "POST") {
-        return json({ error: "Method not allowed" }, 405);
+        return json({
+          error: "Method not allowed"
+        }, 405);
       }
 
       return registerDevice(request, env);
     }
 
+    // Synchronize sales
     if (url.pathname === "/api/sync") {
       if (request.method !== "POST") {
-        return json({ error: "Method not allowed" }, 405);
+        return json({
+          error: "Method not allowed"
+        }, 405);
       }
 
       return syncSale(request, env);
     }
 
+    // Unknown API endpoint
     if (url.pathname.startsWith("/api/")) {
       return json({
         error: "API endpoint not implemented"
       }, 404);
     }
 
+    // Serve Premium POS application files
     return env.ASSETS.fetch(request);
   }
 };
