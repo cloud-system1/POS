@@ -414,25 +414,13 @@
           ◉ Dashboard
         </button>
 
-        <button class="nav-item" type="button" disabled
-                title="Coming in a later step">
-          ▣ Outlets
-        </button>
+        <a class="nav-item" style="text-decoration:none" href="#editOutletSection">▣ Outlets</a>
 
-        <button class="nav-item" type="button" disabled
-                title="Coming in a later step">
-          ▤ Terminals
-        </button>
+        <a class="nav-item" style="text-decoration:none" href="/admin-operations.html#terminals">▤ Terminals</a>
 
-        <button class="nav-item" type="button" disabled
-                title="Coming in a later step">
-          ◈ Cash Settlements
-        </button>
+        <a class="nav-item" style="text-decoration:none" href="/admin-operations.html#settlements">◈ Cash Settlements</a>
 
-        <button class="nav-item" type="button" disabled
-                title="Coming in a later step">
-          ▥ Reports
-        </button>
+        <a class="nav-item" style="text-decoration:none" href="/admin-operations.html#reports">▥ Reports</a>
       </nav>
 
       <div class="sidebar-bottom">
@@ -443,7 +431,7 @@
         </button>
 
         <div class="powered">
-          Powered by GTG Sollutions
+          Powered by GTG Solution
         </div>
       </div>
     </aside>
@@ -463,17 +451,17 @@
       <div class="stats">
         <div class="stat">
           <div class="name">Outlets</div>
-          <div class="value">1</div>
+          <div class="value" id="outletCount">—</div>
         </div>
 
         <div class="stat">
           <div class="name">Terminals</div>
-          <div class="value">1</div>
+          <div class="value" id="terminalCount">—</div>
         </div>
 
         <div class="stat">
           <div class="name">Cashiers</div>
-          <div class="value">—</div>
+          <div class="value" id="cashierCount">—</div>
         </div>
       </div>
 
@@ -766,7 +754,7 @@
         <h3>Create Cashier Account</h3>
         <p>
           Create a secure cashier login and assign it
-          to the Kotikawaththa outlet.
+          to a selected active outlet.
         </p>
 
         <form id="cashierForm">
@@ -827,9 +815,7 @@
             <div class="field">
               <label for="outletCode">Assigned Outlet</label>
               <select id="outletCode" required>
-                <option value="OUT-001">
-                  Kotikawaththa (OUT-001)
-                </option>
+                <option value="">Select an active outlet</option>
               </select>
             </div>
 
@@ -864,7 +850,7 @@
 
       <div class="powered">
         Premium POS · Smart Business Management System
-        · Powered by GTG Sollutions
+        · Powered by GTG Solution
       </div>
     </main>
   </div>
@@ -932,6 +918,7 @@
         loadAdminOutlets();
 
         loadEditableOutlets();
+        loadManagementCounts();
 
 
       } catch {
@@ -1223,6 +1210,11 @@
           throw new Error("Invalid outlet response");
         }
 
+        $("outletCount").textContent=data.outlets.filter(o=>Number(o.is_active)===1).length;
+        const picker=$("outletCode"), previous=picker.value;
+        picker.replaceChildren(new Option("Select an active outlet",""));
+        data.outlets.filter(o=>Number(o.is_active)===1).forEach(o=>picker.add(new Option(o.outlet_name+" ("+o.outlet_code+")",o.outlet_code)));
+        picker.value=previous;
         container.replaceChildren();
 
         data.outlets.forEach(outlet => {
@@ -1249,7 +1241,52 @@
             state.style.color = "#F87171";
           }
 
-          row.append(details, state);
+          const controls = document.createElement("div");
+          controls.className = "actions";
+          controls.style.alignItems = "center";
+
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "btn";
+          toggle.textContent = Number(outlet.is_active) === 1
+            ? "Deactivate" : "Activate";
+          toggle.setAttribute("aria-label", toggle.textContent + " " + outlet.outlet_name);
+          toggle.addEventListener("click", async () => {
+            const currentlyActive = Number(outlet.is_active) === 1;
+            const targetStatus = currentlyActive ? 0 : 1;
+            const action = currentlyActive ? "deactivate" : "activate";
+            if (!window.confirm("Are you sure you want to " + action +
+                " " + outlet.outlet_name + " (" + outlet.outlet_code + ")?")) return;
+
+            toggle.disabled = true;
+            toggle.textContent = "Updating...";
+            status.textContent = "Updating " + outlet.outlet_code + "...";
+            try {
+              const response = await fetch("/api/admin/outlets/status", {
+                method: "PATCH",
+                credentials: "same-origin",
+                cache: "no-store",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ outletId: outlet.outlet_id, isActive: targetStatus })
+              });
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                throw new Error(result.error || "Unable to update outlet status");
+              }
+              await loadAdminOutlets();
+              await loadEditableOutlets();
+              status.textContent = result.message + " (" + outlet.outlet_code + ")";
+            } catch (error) {
+              status.textContent = "Status change not confirmed: " + error.message +
+                ". Refresh outlets to verify before retrying.";
+            } finally {
+              toggle.disabled = false;
+              toggle.textContent = currentlyActive ? "Deactivate" : "Activate";
+            }
+          });
+
+          controls.append(state, toggle);
+          row.append(details, controls);
           container.appendChild(row);
         });
 
@@ -1604,7 +1641,58 @@
     );
 
     
+    async function loadManagementCounts(){
+      for(const [kind,key,target] of [["terminals","terminals","terminalCount"],["cashiers","cashiers","cashierCount"]]){
+        try{const r=await fetch("/api/admin/operations/"+kind,{cache:"no-store"});const d=await r.json();if(!r.ok)throw Error();$(target).textContent=new Set(d[key].filter(x=>Number(x.is_active)===1 && !x.revoked_at).map(x=>x.user_id||x.terminal_id)).size;}catch{$(target).textContent="Unavailable";}
+      }
+    }
     initializeAdmin();
   </script>
+<div style="position:fixed;bottom:12px;right:12px;z-index:1000"><a href="/admin-operations.html" style="display:block;background:#1559c0;color:white;padding:12px;border-radius:9px;text-decoration:none">Operations Management</a></div>
+<div id="delayed-sale-dashboard"
+style="position:fixed;top:12px;right:12px;z-index:2000;background:#78350f;color:white;padding:16px;border-radius:9px;max-width:420px"
+hidden>
+  <strong id="delayed-sale-message"></strong>
+  <p><a href="/admin-operations.html#late-sales"
+  style="color:white;text-decoration:underline">
+  Review delayed sales</a></p>
+</div>
+
+<script>
+(async function(){
+  const panel=document.getElementById('delayed-sale-dashboard');
+  const message=document.getElementById('delayed-sale-message');
+
+  async function refresh(){
+    try{
+      const r=await fetch('/api/admin/operations/late-sales',{
+        credentials:'same-origin',
+        cache:'no-store'
+      });
+
+      if(r.status===401||r.status===403){
+        panel.hidden=true;
+        return;
+      }
+
+      const d=await r.json();
+
+      if(!r.ok||!d.success)throw Error();
+
+      panel.hidden=d.pendingCount===0;
+
+      message.textContent='ACTION REQUIRED: '+d.pendingCount+
+        ' delayed sale(s) - Rs. '+(d.pendingCents/100).toFixed(2);
+
+    }catch{
+      panel.hidden=false;
+      message.textContent='Unable to verify delayed sales.';
+    }
+  }
+
+  await refresh();
+  setInterval(refresh,30000);
+})();
+</script>
 </body>
 </html>

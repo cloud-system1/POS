@@ -168,6 +168,74 @@ const productsByCode = new Map(
   products.map(product => [product.code, product])
 );
 
+const originalProducts = new Map(products.map(p => [p.id,{...p}]));
+const originalCategories = [...categoryNames];
+let catalogueReady = false;
+let catalogueRunning = false;
+let catalogueFingerprint = null;
+function catalogueStatus(message) {
+  let el = document.getElementById("catalogue-status");
+  if (!el) { el=document.createElement("p"); el.id="catalogue-status"; $("device-status").after(el); }
+  el.textContent=message;
+}
+function applyCatalogue(data) {
+  if (!Array.isArray(data.categories) || !Array.isArray(data.products) || !data.categories.length || !data.products.length) throw Error("Empty or invalid central catalogue");
+  const cats=new Map(data.categories.map(c=>[c.category_id,c.name]));
+  const codes=new Map();
+  for(const c of data.categories) {
+    const match=/^CAT-(0[1-9]|1[0-2])$/.exec(c.category_id);
+    if(match) codes.set(c.category_id,Number(match[1]));
+  }
+  let next=12;
+  for(const c of data.categories) if(!codes.has(c.category_id)) codes.set(c.category_id,++next);
+  const counters=new Map([...codes.values()].map(n=>[n,0]));
+  for(const p of originalProducts.values()) { const [n,k]=p.code.split("-").map(Number); counters.set(n,Math.max(counters.get(n)||0,k)); }
+  const updated=[];
+  for(const r of data.products) {
+    if(!cats.has(r.category_id)||!Number.isSafeInteger(r.price_cents)||r.price_cents<0||typeof r.name!=="string") throw Error("Invalid central product");
+    const n=codes.get(r.category_id), old=originalProducts.get(r.product_id);
+    let code;
+    if(old && Number(old.code.split("-")[0])===n) code=old.code;
+    else {const k=(counters.get(n)||0)+1; counters.set(n,k);code=`${n}-${k}`;}
+    if(r.is_active===1) updated.push({id:r.product_id,name:r.name,category:cats.get(r.category_id),price:r.price_cents,code});
+  }
+  const fingerprint=JSON.stringify([data.outletId,data.categories,data.products]);
+  if(fingerprint!==catalogueFingerprint) {
+    products.splice(0,products.length,...updated);
+    categoryNames.splice(0,categoryNames.length,...[...data.categories].sort((a,b)=>codes.get(a.category_id)-codes.get(b.category_id)).map(c=>c.name));
+    categoryCodes.clear(); for(const [id,n] of codes) categoryCodes.set(cats.get(id),n);
+    productsByCode.clear(); for(const p of products) productsByCode.set(p.code,p);
+    if(!categoryNames.includes(activeCategory)) activeCategory="All";
+    closeDropdown(); visibleProducts=[]; renderCategories(); renderProducts();
+    catalogueFingerprint=fingerprint;
+  }
+  catalogueReady=true;
+}
+async function refreshCatalogue() {
+  if(catalogueRunning || saving || cart.size) return;
+  catalogueRunning=true;
+  try {
+    const device=await getSetting("device");
+    if(!device?.token) {catalogueReady=false; catalogueStatus("Catalogue: register terminal first");return;}
+    const key="centralCatalogue:"+device.deviceId;
+    const shift=await getSetting("activeShift");
+    const cached=await getSetting(key);
+    if(cart.size || saving) return;
+    if(!catalogueReady && cached?.deviceId===device.deviceId && (!shift?.outletId || cached.outletId===shift.outletId)) applyCatalogue(cached);
+    if(!navigator.onLine) {catalogueStatus(catalogueReady?"Catalogue: offline saved copy":"Catalogue: initial online synchronization required");return;}
+    const response=await fetch("/api/cashier/catalogue",{headers:{Authorization:"Bearer "+device.token},cache:"no-store",signal:AbortSignal.timeout(10000)});
+    if(response.status===401||response.status===403) {catalogueReady=false; await setSetting(key,null); catalogueStatus("Catalogue: terminal authorization required");return;}
+    if(!response.ok) throw Error("Catalogue request failed");
+    const data=await response.json();
+    if(!data.success||data.deviceId!==device.deviceId) throw Error("Invalid catalogue response");
+    if(cart.size||saving) return;
+    applyCatalogue(data);
+    await setSetting(key,data);
+    catalogueStatus("Catalogue synchronized: "+new Date().toLocaleTimeString());
+  } catch(error) {console.error(error);catalogueStatus(catalogueReady?"Catalogue: using last synchronized copy":"Catalogue: synchronization required");}
+  finally {catalogueRunning=false;}
+}
+
 // ============================================
 // 3. FOOD PHOTOGRAPHS
 // ============================================
@@ -692,6 +760,7 @@ function renderProducts() {
 
 function addProduct(product, quantity = 1) {
   if (saving || !product) return false;
+  if (!catalogueReady) { showMessage("Synchronize the central catalogue before billing."); return false; }
 
   if (
     !Number.isSafeInteger(quantity) ||
@@ -770,27 +839,53 @@ function renderCart() {
 
     const label = document.createElement("span");
 
-    label.textContent =
-      `${productCode(item)} - ` +
-      `${productName(item)} x${item.qty} ` +
-      `= Rs. ${money(item.price * item.qty)}`;
-
-    const removeButton = document.createElement("button");
-
-    removeButton.type = "button";
-    removeButton.className = "secondary";
-    removeButton.textContent = "−";
-
-    removeButton.setAttribute(
-      "aria-label",
-      `Remove one ${productName(item)}`
-    );
-
-    removeButton.addEventListener("click", () => {
-      changeQuantity(item.id, -1);
+    label.textContent = `${productName(item)} — Rs. ${money(item.price * item.qty)}`;
+    const qty = document.createElement("input");
+    qty.type = "text";
+    qty.inputMode = "numeric";
+    qty.className = "cart-qty";
+    qty.value = String(item.qty);
+    qty.dataset.productId = item.id;
+    qty.setAttribute("aria-label", `Quantity for ${productName(item)}`);
+    qty.addEventListener("focus", () => { lastProductId = item.id; qty.select(); });
+    function commitQuantity() {
+      const value = Number(qty.value);
+      if (saving || !/^\d+$/.test(qty.value) || !Number.isSafeInteger(value) || value < 1 || value > 999) {
+        qty.value = String(cart.get(item.id)?.qty || item.qty);
+        showMessage("Quantity must be between 1 and 999.");
+        return;
+      }
+      const current = cart.get(item.id);
+      if (!current) return;
+      cart.set(item.id, {...current, qty:value});
+      label.textContent = `${productName(current)} — Rs. ${money(current.price * value)}`;
+      $("total").textContent = money(totalCents());
+      updateChange();
+    }
+    qty.addEventListener("change", commitQuantity);
+    qty.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault(); event.stopPropagation();
+        if (event.key === "Escape") qty.value = String(cart.get(item.id).qty);
+        else commitQuantity();
+        focusSearch();
+      }
     });
-
-    row.append(label, removeButton);
+    function control(text, title, action) {
+      const button = document.createElement("button");
+      button.type = "button"; button.className = "secondary";
+      button.textContent = text; button.setAttribute("aria-label", title);
+      button.addEventListener("click", action); return button;
+    }
+    const minus = control("−", "Decrease quantity", () => changeQuantity(item.id, -1));
+    const plus = control("+", "Increase quantity", () => changeQuantity(item.id, 1));
+    const remove = control("×", "Remove item", () => {
+      if (saving) return;
+      cart.delete(item.id);
+      if (lastProductId === item.id) lastProductId = [...cart.keys()].at(-1) || null;
+      renderCart();
+    });
+    row.append(label, minus, qty, plus, remove);
     container.appendChild(row);
   });
 
@@ -831,6 +926,7 @@ function updateChange() {
 
 async function checkout() {
   if (saving) return;
+  if (!catalogueReady) { showMessage("Synchronize the central catalogue before billing."); return; }
 
   if (!cart.size) {
     showMessage("Add at least one product.");
@@ -857,13 +953,39 @@ async function checkout() {
     return;
   }
 
+  // Fail closed: a cashier cannot create an unattributed sale.
+  // Offline sales use the previously verified shift stored on this PC.
   saving = true;
   $("checkout").disabled = true;
+  let activeShift, registeredDevice;
+  try {
+    activeShift = await getSetting("activeShift");
+    registeredDevice = await getSetting("device");
+  } catch (error) {
+    saving = false;
+    $("checkout").disabled = false;
+    showMessage("Unable to verify shift: " + error.message);
+    return;
+  }
+  if (!activeShift?.shiftId || !registeredDevice?.deviceId ||
+      activeShift.deviceId !== registeredDevice.deviceId) {
+    saving = false;
+    $("checkout").disabled = false;
+    showMessage("Open a cashier shift on this registered terminal before billing.");
+    return;
+  }
+
+  if (!await window.posBillingAuthorized?.(activeShift, registeredDevice)) {
+    saving = false; $("checkout").disabled = false;
+    showMessage("Cashier authorization unavailable. Refresh shift status or reconnect."); return;
+  }
 
   const sale = {
     id:crypto.randomUUID(),
     createdAt:new Date().toISOString(),
     currency:"LKR",
+    shiftId:activeShift.shiftId,
+    cashierId:activeShift.cashierId,
 
     items:[...cart.values()].map(item => ({
       ...item
@@ -905,6 +1027,14 @@ async function checkout() {
   }
 
   if (saved) {
+    try {
+      if (typeof window.printSavedPOSReceipt !== "function") {
+        throw new Error("Receipt module unavailable");
+      }
+      await window.printSavedPOSReceipt(sale);
+    } catch (error) {
+      showMessage("Sale saved. Printing unavailable; reprint from Sales History. " + error.message);
+    }
     try {
       await refreshPending();
     } catch (error) {
@@ -1056,7 +1186,9 @@ document.addEventListener("keydown", event => {
     return;
   }
 
-  if (key === "F2") {
+  if (document.querySelector("dialog[open]")) return;
+
+  if (event.code === "ShiftRight" || key === "F2") {
     event.preventDefault();
     focusSearch();
     return;
@@ -1074,7 +1206,17 @@ document.addEventListener("keydown", event => {
 
   if (key === "F8") {
     event.preventDefault();
-    checkout();
+    if (event.repeat || saving) return;
+    if (document.activeElement !== $("cash")) {
+      closeDropdown(); $("cash").focus(); $("cash").select();
+    } else checkout();
+    return;
+  }
+  if (key === "." && document.activeElement !== $("cash") &&
+      (document.activeElement === searchInput ? !searchInput.value.trim() :
+       !event.target.matches("input, textarea, select, [contenteditable=true]"))) {
+    const field = [...document.querySelectorAll(".cart-qty")].find(el => el.dataset.productId === lastProductId);
+    if (field) { event.preventDefault(); closeDropdown(); field.focus(); field.select(); }
     return;
   }
 
@@ -1194,3 +1336,7 @@ if ("serviceWorker" in navigator) {
 }
 
 focusSearch();
+refreshCatalogue();
+setInterval(refreshCatalogue,30000);
+window.addEventListener("online",refreshCatalogue);
+window.addEventListener("offline",refreshCatalogue);

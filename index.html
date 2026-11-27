@@ -478,6 +478,7 @@
       flex: 1;
     }
 
+    .cart-qty { width: 52px; min-width: 0; text-align: center; padding: 6px 2px; }
     .cart-row button {
       flex-shrink: 0;
       padding: 8px 12px;
@@ -681,6 +682,7 @@
   <script src="./db.js" defer></script>
   <script src="./app.js" defer></script>
   <script src="./sync.js" defer></script>
+  <script src="./cashier-shifts.js" defer></script>
 </head>
 
 <body>
@@ -695,7 +697,7 @@
         <div class="brand-icon">P</div>
         <div class="brand-copy">
           <div class="brand-name">Premium <span style="color:#60a5fa">POS</span></div>
-          <div class="brand-subtitle">Powered by GTG Sollutions</div>
+          <div class="brand-subtitle">Powered by GTG Solution</div>
         </div>
       </div>
 
@@ -797,8 +799,8 @@
                 </div>
 
                 <div class="keyboard-help">
-                  F2 Search | 2- Dosa | ↑ ↓ Select |
-                  Enter Add | F4 Cash | F8 Complete | Esc Clear
+                  Right Shift Search | ↑ ↓ Select |
+                  Enter Add | . Quantity | F8 Cash / Complete | Esc Clear
                 </div>
 
                 <div
@@ -1062,6 +1064,11 @@
     font-size: 13px;
   }
 
+  .receipt-item-row { display: grid; grid-template-columns: minmax(0, 1fr) 4ch max-content; gap: 6px; padding: 5px 0; font-size: 13px; break-inside: avoid; }
+  .receipt-item-row > span:first-child { overflow-wrap: anywhere; }
+  .receipt-item-row > span:nth-child(2) { text-align: center; }
+  .receipt-item-row > span:last-child { text-align: right; white-space: nowrap; min-width: 10ch; font-variant-numeric: tabular-nums; }
+  .receipt-item-header { font-weight: bold; border-top: 1px solid #ccc; border-bottom: 0; margin-top: 5px; }
   .sh-receipt-total {
     font-size: 18px;
     font-weight: bold;
@@ -1202,10 +1209,29 @@
 
 <!-- RECEIPT WINDOW -->
 
+<style>
+  #pos-print-root { display: none; }
+  @media print {
+    @page { margin: 0; }
+    html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+    body > :not(#pos-print-root) { display: none !important; }
+    #pos-print-root { display: block !important; width: 72mm; max-width: 100%; padding: 0 2mm 1mm; margin: 0 auto; color: #111; background: white; font: 12px Arial, sans-serif; }
+    #pos-print-root .receipt-logo { display: block; width: 30mm; height: auto; margin: 0 auto 1mm; }
+    #pos-print-root h2 { text-align: center; font-size: 18px; margin: 0 0 2mm; line-height: 1.15; }
+    #pos-print-root .receipt-thanks { margin: 3mm 0 1mm; color: #111; }
+    #pos-print-root .receipt-provider { margin: 0; color: #111; font-size: 11px; line-height: 1.3; }
+    #pos-print-root .sh-receipt-row { color: #111; padding: 2px 0; border: 0; break-inside: avoid; }
+    #pos-print-root .sh-receipt-total { border-top: 1px solid #ccc; margin-top: 3px; padding-top: 6px; }
+    #pos-print-root .receipt-thanks { border-top: 1px solid #ccc; padding-top: 3px; }
+    #pos-print-root .sh-receipt-row > span:last-child { white-space: nowrap; }
+    #pos-print-root .receipt-item-row { font-size: 12px; padding: 3px 0; }
+    #pos-print-root .sh-receipt-total { color: #111; font-size: 16px; }
+  }
+</style>
+<div id="pos-print-root" aria-hidden="true"></div>
 <dialog id="sh-receipt">
 
   <div class="sh-receipt-header">
-    <h2>PREMIUM POS</h2>
     <div>Sales Receipt</div>
   </div>
 
@@ -1326,9 +1352,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function shortId(sale) {
-    return String(sale.id || "")
-      .slice(0, 8)
-      .toUpperCase();
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Colombo", day: "2-digit", month: "2-digit",
+      year: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(new Date(sale.createdAt));
+    return ["day", "month", "year", "hour", "minute"]
+      .map(type => parts.find(p => p.type === type).value).join("");
   }
 
   function showBilling() {
@@ -1471,6 +1500,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const searchable = [
         sale.id,
+        shortId(sale),
         items,
         sale.paymentMethod
       ].join(" ").toLowerCase();
@@ -1521,7 +1551,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
       const values = [
-        "#" + shortId(sale),
+        shortId(sale),
         formatDate(sale.createdAt),
         quantity,
         String(sale.paymentMethod || "cash")
@@ -1569,7 +1599,7 @@ document.addEventListener("DOMContentLoaded", () => {
     container.appendChild(row);
   }
 
-  function openReceipt(sale) {
+  function openReceipt(sale, showDialog = true) {
     currentReceipt = sale;
 
     const content = byId("sh-receipt-content");
@@ -1577,7 +1607,7 @@ document.addEventListener("DOMContentLoaded", () => {
     content.replaceChildren();
 
     receiptRow(
-      content, "Bill ID", "#" + shortId(sale)
+      content, "Bill ID", shortId(sale)
     );
 
     receiptRow(
@@ -1590,27 +1620,27 @@ document.addEventListener("DOMContentLoaded", () => {
       String(sale.paymentMethod || "cash").toUpperCase()
     );
 
-    const heading = document.createElement("h3");
+    function itemRow(name, qty, amount, header = false) {
+      const row = document.createElement("div");
+      row.className = "receipt-item-row" + (header ? " receipt-item-header" : "");
+      for (const value of [name, qty, amount]) {
+        const cell = document.createElement("span");
+        cell.textContent = String(value);
+        row.appendChild(cell);
+      }
+      content.appendChild(row);
+    }
 
-    heading.textContent = "Purchased Items";
-
-    content.appendChild(heading);
-
+    itemRow("Item", "Qty", "Rs.", true);
     (sale.items || []).forEach(item => {
       const qty = itemQuantity(item);
-      const price = itemPrice(item);
-
-      receiptRow(
-        content,
-        itemName(item) + " x " + qty +
-        " @ " + formatMoney(price),
-        formatMoney(price * qty)
-      );
+      itemRow(itemName(item), qty,
+        formatMoney(itemPrice(item) * qty).replace(/^Rs\. /, ""));
     });
 
     receiptRow(
       content,
-      "Total",
+      "TOTAL",
       formatMoney(sale.totalCents),
       true
     );
@@ -1631,12 +1661,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     thanks.textContent = "Thank you! Visit us again.";
     thanks.style.textAlign = "center";
-    thanks.style.marginTop = "20px";
-    thanks.style.color = "#777f8b";
+    thanks.className = "receipt-thanks";
 
     content.appendChild(thanks);
 
-    if (!receipt.open) {
+    const provider = document.createElement("p");
+    provider.className = "receipt-provider";
+    provider.style.textAlign = "center";
+    provider.append(document.createTextNode("Powered by GTG Solution"),
+      document.createElement("br"), document.createTextNode("0777 275796"));
+    content.appendChild(provider);
+
+    if (showDialog && !receipt.open) {
       receipt.showModal();
     }
   }
@@ -1666,66 +1702,38 @@ document.addEventListener("DOMContentLoaded", () => {
     "click", () => receipt.close()
   );
 
-  byId("sh-print").addEventListener("click", () => {
-    if (!currentReceipt) return;
-
-    const printWindow = window.open(
-      "", "_blank", "width=450,height=700"
-    );
-
-    if (!printWindow) {
-      alert("Please allow pop-ups to print the receipt.");
-      return;
+  let printing = false;
+  async function printCurrentReceipt() {
+    if (!currentReceipt || printing) return;
+    printing = true;
+    const root = byId("pos-print-root");
+    const content = byId("sh-receipt-content").cloneNode(true);
+    content.removeAttribute("id");
+    const logo = document.createElement("img");
+    logo.className = "receipt-logo";
+    logo.alt = "SK restaurant logo";
+    logo.src = "data:image/png;base64,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";
+    root.replaceChildren(logo, content);
+    try { await logo.decode(); } catch { logo.remove(); }
+    // Close the modal so it cannot obscure the print-only receipt.
+    if (receipt.open) receipt.close();
+    try {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      window.print();
+    } finally {
+      printing = false;
+      // Keep print content available until the next receipt replaces it.
+      if (historyActive) historyButton.focus();
+      else byId("product-search")?.focus();
     }
+  }
 
-    const doc = printWindow.document;
+  window.printSavedPOSReceipt = sale => {
+    openReceipt(sale, false);
+    return printCurrentReceipt();
+  };
 
-    doc.title = "Premium POS Receipt";
-
-    const style = doc.createElement("style");
-
-    style.textContent = `
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 340px;
-        margin: 25px auto;
-        padding: 15px;
-        color: #111;
-      }
-
-      h2 { text-align: center; }
-
-      .sh-receipt-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px 0;
-        border-bottom: 1px dashed #aaa;
-        font-size: 13px;
-      }
-
-      .sh-receipt-total {
-        font-size: 18px;
-        font-weight: bold;
-      }
-    `;
-
-    doc.head.appendChild(style);
-
-    const title = doc.createElement("h2");
-    title.textContent = "PREMIUM POS";
-
-    doc.body.appendChild(title);
-
-    doc.body.appendChild(
-      doc.importNode(
-        byId("sh-receipt-content"), true
-      )
-    );
-
-    printWindow.focus();
-    printWindow.print();
-  });
+  byId("sh-print").addEventListener("click", printCurrentReceipt);
 
 });
 </script>
@@ -1802,69 +1810,89 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginLink = document.getElementById("premium-login-link");
   const userLabel = document.getElementById("premium-user");
   const logoutButton = document.getElementById("premium-logout");
-  let verified = false;
+  let verified = false, checking = false, signingOut = false, user = null, deadline = 0;
+  const key = "offlineCashierAuthorizationV1";
   function deny(text) {
-    verified = false;
-    app.inert = true;
-    app.setAttribute("aria-hidden", "true");
-    overlay.hidden = false;
-    message.textContent = text;
-    loginLink.hidden = false;
-    logoutButton.disabled = true;
+    verified = false; user = null; deadline = 0;
+    app.inert = true; app.setAttribute("aria-hidden", "true");
+    overlay.hidden = false; message.textContent = text;
+    loginLink.hidden = false; logoutButton.disabled = true;
   }
+  function allow(u, expiry, offline) {
+    verified = true; user = u; deadline = expiry;
+    userLabel.textContent = u.fullName + " · CASHIER" + (offline ? " · OFFLINE" : "");
+    logoutButton.disabled = false; app.inert = false;
+    app.removeAttribute("aria-hidden"); overlay.hidden = true;
+  }
+  async function matchingLease() {
+    const [lease, device, shift] = await Promise.all([getSetting(key),getSetting("device"),getSetting("activeShift")]);
+    if (!lease || lease.user?.role !== "cashier" || !device?.token || !shift?.shiftId ||
+        lease.deviceId !== device.deviceId || lease.shiftId !== shift.shiftId ||
+        lease.user.userId !== shift.cashierId || shift.deviceId !== device.deviceId ||
+        Date.now() < lease.issuedAt || Date.now() >= lease.expiresAt) return null;
+    const catalogue = await getSetting("centralCatalogue:" + device.deviceId);
+    if (catalogue?.deviceId !== device.deviceId || catalogue.outletId !== lease.outletId || !catalogue.products?.length) return null;
+    return lease;
+  }
+  window.posBillingAuthorized = async (shift, device) => {
+    if (!verified || checking || signingOut || Date.now() >= deadline || !user || shift?.cashierId !== user.userId || shift?.deviceId !== device?.deviceId) return false;
+    const lease = await matchingLease();
+    return !!lease && lease.user.userId === user.userId;
+  };
   async function checkSession() {
+    if (checking || signingOut) return;
+    checking = true;
     try {
-      const response = await fetch("/api/auth/me", {
-        method: "GET", credentials: "same-origin", cache: "no-store"
-      });
-      if (response.status === 401) {
-        window.location.replace("./login.html");
+      let response;
+      try { response = await fetch("/api/auth/me", {credentials:"same-origin",cache:"no-store",signal:AbortSignal.timeout(8000)}); }
+      catch (error) {
+        const lease = await matchingLease();
+        if (lease) allow(lease.user, lease.expiresAt, true);
+        else deny("Offline authorization unavailable or expired. Reconnect to continue.");
         return;
       }
-      if (!response.ok) throw new Error("Session service unavailable");
+      if (!response.ok) { await setSetting(key,null); deny("Online session verification failed. Sign in again."); return; }
       const data = await response.json();
-      if (!data.success || !data.user ||
-          !["admin", "cashier"].includes(data.user.role)) {
-        window.location.replace("./login.html");
+      if (!data.success || data.user?.role !== "cashier") {
+        await setSetting(key,null); deny("Cashier login required.");
+        if (data.user?.role === "admin") location.replace("/admin");
         return;
       }
-      verified = true;
-      userLabel.textContent = data.user.fullName + " · " + data.user.role.toUpperCase();
-      logoutButton.disabled = false;
-      app.inert = false;
-      app.removeAttribute("aria-hidden");
-      overlay.hidden = true;
-    } catch (error) {
-      deny("Unable to verify your login. Connect to the internet and sign in again. Offline login will be added in a later step.");
-    }
+      const now = Date.now(), expiry = Math.min(now + 86400000, Date.parse(data.expiresAt));
+      if (!Number.isFinite(expiry) || expiry <= now) { await setSetting(key,null); deny("Session expired. Sign in again."); return; }
+      const device = await getSetting("device");
+      if (device?.token) {
+        const r = await fetch("/api/cashier/shifts/current", {credentials:"same-origin",cache:"no-store",headers:{Authorization:"Bearer " + device.token},signal:AbortSignal.timeout(8000)});
+        if (!r.ok) { await setSetting(key,null); deny("Terminal or shift verification failed. Reconnect or contact administrator."); return; }
+        const result = await r.json(), shift = result.shift;
+        if (shift?.cashier_id === data.user.userId && shift.device_id === device.deviceId) {
+          await setSetting("activeShift",{shiftId:shift.shift_id,cashierId:data.user.userId,outletCode:shift.outlet_code,outletId:shift.outlet_id,deviceId:device.deviceId});
+          await setSetting(key,{user:data.user,deviceId:device.deviceId,shiftId:shift.shift_id,outletId:shift.outlet_id,issuedAt:now,expiresAt:expiry});
+        } else { await setSetting(key,null); }
+      } else { await setSetting(key,null); }
+      allow(data.user,expiry,false);
+    } catch (error) { deny("Unable to verify cashier authorization. Reconnect and try again."); }
+    finally { checking = false; }
   }
+  window.posRefreshAuthorization = checkSession;
   logoutButton.addEventListener("click", async () => {
-    if (!verified) return;
-    logoutButton.disabled = true;
-    app.inert = true;
-    overlay.hidden = false;
-    message.textContent = "Signing out...";
-    loginLink.hidden = true;
+    if (!verified || checking || signingOut) return;
+    signingOut = true; deny("Signing out...");
     try {
-      const response = await fetch("/api/auth/logout", {
-        method:"POST", credentials:"same-origin", cache:"no-store"
-      });
-      if (!response.ok) throw new Error("Logout failed");
-      window.location.replace("./login.html");
-    } catch (error) {
-      deny("Could not confirm logout. Please reconnect and try again.");
-    }
+      await setSetting(key,null);
+      const response = await fetch("/api/auth/logout", {method:"POST",credentials:"same-origin",cache:"no-store",signal:AbortSignal.timeout(8000)});
+      if (!response.ok) throw Error("Logout failed");
+      location.replace("./login.html");
+    } catch { deny("Local authorization cleared. Reconnect to complete server logout."); }
   });
-  window.addEventListener("pageshow", () => {
-    if (verified) {
-      app.inert = true;
-      overlay.hidden = false;
-      message.textContent = "Verifying your secure session...";
-      loginLink.hidden = true;
-      checkSession();
-    }
-  });
-  checkSession();
+  window.addEventListener("online",checkSession);
+  window.addEventListener("pageshow",checkSession);
+  setInterval(() => {
+    if (verified && Date.now() >= deadline) deny("Session expired. Reconnect and sign in again.");
+    if (navigator.onLine && !signingOut) checkSession();
+  },30000);
+  document.addEventListener("DOMContentLoaded",checkSession);
+
 })();
 </script>
 

@@ -514,7 +514,7 @@
       </p>
 
       <p class="developer">
-        Powered by <span>GTG Sollutions</span>
+        Powered by <span>GTG Solution</span>
       </p>
 
     </div>
@@ -679,7 +679,7 @@
 
           setTimeout(() => {
 
-            window.location.replace("./index.html");
+            window.location.replace(result.user.role === "admin" ? "/admin" : "/");
 
           }, 800);
 
